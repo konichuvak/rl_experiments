@@ -6,3 +6,4 @@ contains implementations of algorithms described in [Reinforcement Learning: An 
 `python Dashboard.py` launches a local [Dash](https://plot.ly/products/dash/) instance, allowing for interactive interpretation and exploration of presented solutions
 
 ![blackjack](https://github.com/konichuvak/rl_experiments/blob/master/blackjack.png)
+
