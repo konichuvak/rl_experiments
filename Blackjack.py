@@ -5,9 +5,8 @@ import plotly.graph_objs as go
 from plotly import tools
 from tqdm import tqdm
 import random
-from random import random, randint, seed
 np.random.seed(1)
-seed(1)
+random.seed(1)
 
 
 class Blackjack:
@@ -198,8 +197,8 @@ class Blackjack:
         # j = dict(zip(range(1, 11), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
         for _ in tqdm(range(n_episodes)):
             # exploring starts
-            init_action = randint(0, 1)
-            init_state = [randint(12, 21), randint(1, 10), randint(0, 1)]
+            init_action = random.randint(0, 1)
+            init_state = [random.randint(12, 21), random.randint(1, 10), random.randint(0, 1)]
             with NoPrint():
                 episode = self.generate_episode(init_state=init_state, init_action=init_action)
 
@@ -250,7 +249,7 @@ class Blackjack:
 
         return q_values, self.players_policy, n_visits
 
-    def monte_carlo_epsilon_greedy(self, epsilon: float, n_episodes: int, first_visit: bool = True):
+    def monte_carlo_epsilon_greedy(self, n_episodes: int, epsilon: float = 0.1, first_visit: bool = True):
         q_values = np.zeros((2, 2, 10, 10))
         n_visits = q_values.copy()
 
@@ -287,55 +286,8 @@ class Blackjack:
                         if action_value > q_value:
                             q_value = action_value
                             greedy_acton = a
-                    if random < epsilon:
-                        self.players_policy[state] = randint(0, 1)
-                    else:
-                        self.players_policy[state] = greedy_acton
-
-            else:
-                raise Exception('all visit MC is not implemented')
-
-        return q_values, self.players_policy, n_visits
-
-    def monte_carlo_epsilon_greedy(self, epsilon: float, n_episodes: int, first_visit: bool = True):
-        q_values = np.zeros((2, 2, 10, 10))  # (useable ace, action_taken, player's 12-21, dealer's ace-10, )
-        n_visits = q_values.copy()
-
-        for _ in tqdm(range(n_episodes)):
-            with NoPrint():
-                episode = self.generate_episode()
-
-            state_actions = episode['state_actions'] = list(zip(episode['states'], episode['actions']))
-            del episode['states']
-            del episode['actions']
-
-            g = 0
-            if first_visit:
-
-                if len(state_actions) != len(list(map(set, state_actions))):
-                    episode = pd.DataFrame.from_dict(episode)
-                    episode = episode.drop_duplicates(subset=['state_actions'], keep='first')
-                    state_actions = episode['state_actions']
-                    rewards = reversed(list(episode['rewards']))
-                else:
-                    rewards = reversed(episode['rewards'])
-
-                for s, action in reversed(state_actions):
-                    state = (s[0], s[1] - self.offset, s[2]-1)
-                    g = self.gamma * g + rewards.__next__()
-                    n = n_visits[action][state] = n_visits[action][state] + 1
-                    q = q_values[action][state]
-                    q_values[action][state] = q + (g - q) / n
-
-                    greedy_acton = self.players_policy[state]
-                    q_value = -float('inf')
-                    for a in (0, 1):
-                        action_value = q_values[a][state]
-                        if action_value > q_value:
-                            q_value = action_value
-                            greedy_acton = a
-                    if random < epsilon:
-                        self.players_policy[state] = randint(0, 1)
+                    if random.random() < epsilon:
+                        self.players_policy[state] = random.randint(0, 1)
                     else:
                         self.players_policy[state] = greedy_acton
 
