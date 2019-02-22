@@ -299,7 +299,6 @@ class Blackjack:
     @staticmethod
     def plot_value_function(state_values, n_episodes=None):
         fig = tools.make_subplots(2, 1,
-                                  # shared_xaxes=True,
                                   subplot_titles=['No Usable Ace', 'With Usable Ace'],
                                   vertical_spacing=0.2
                                   )
@@ -334,7 +333,6 @@ class Blackjack:
     @staticmethod
     def plot_policy(policy):
         fig = tools.make_subplots(2, 1,
-                                  # shared_xaxes=True,
                                   subplot_titles=['No Usable Ace', 'With Usable Ace'],
                                   vertical_spacing=0.2
                                   )
@@ -342,7 +340,6 @@ class Blackjack:
             i['font'] = dict(size=13)
         layout = dict(
             height=800,
-            # width=400,
             title=f'Optimal Policy',
             showlegend=False,
         )
@@ -371,7 +368,6 @@ class Blackjack:
     @staticmethod
     def plot_n_visits(n_visits, action):
         fig = tools.make_subplots(2, 1,
-                                  # shared_xaxes=True,
                                   subplot_titles=['No Usable Ace', 'With Usable Ace'],
                                   vertical_spacing=0.2
                                   )
@@ -379,7 +375,6 @@ class Blackjack:
             i['font'] = dict(size=13)
         layout = dict(
             height=800,
-            # width=400,
             title=f'Sampled States with action {action} taken',
             showlegend=False,
         )
