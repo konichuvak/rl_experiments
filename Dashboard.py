@@ -220,7 +220,6 @@ app.layout = html.Div(
 
         ################
         # BODY
-        ################
 
         html.Div(
             id='static_components',
@@ -488,12 +487,12 @@ app.layout = html.Div(
                 ),
                 ####################################################################################
                 html.Div(
-                    id='control_div',
+                    id='task_div',
                     children=[
-                        html.Label('Eval/Control:', style={'textAlign': 'center'}),
+                        html.Label('Task:', style={'textAlign': 'center'}),
                         dcc.Dropdown(
-                            id='control',
-                            options=[{'label': s, 'value': s} for s in ['Policy evaluation', 'Control']],
+                            id='task',
+                            options=[{'label': s, 'value': s} for s in ['Evaluation', 'Control']],
                             value='Control'
                         )
                     ],
@@ -524,6 +523,32 @@ app.layout = html.Div(
                             step=10000,
                             value=10000,
                             style={'width': '100%', 'textAlign': 'center'}
+                        )
+                    ],
+                    style={'display': 'none'},
+                    className='two columns',
+                ),
+                html.Div(
+                    id='behavior_div',
+                    children=[
+                        html.Label('Behavioral policy', style={'textAlign': 'center'}),
+                        dcc.Dropdown(
+                            id='behavior',
+                            options=[{'label': s, 'value': s} for s in ['Random', 'Epsilon greedy']],
+                            value='True'
+                        )
+                    ],
+                    style={'display': 'none'},
+                    className='two columns',
+                ),
+                html.Div(
+                    id='policy_div',
+                    children=[
+                        html.Label('Off Policy', style={'textAlign': 'center'}),
+                        dcc.Dropdown(
+                            id='off_policy',
+                            options=[{'label': s, 'value': s} for s in ['True', 'False']],
+                            value='True'
                         )
                     ],
                     style={'display': 'none'},
@@ -585,10 +610,10 @@ app.css.append_css({
 # STATIC CONTROLS SHOW/HIDE
 
 @app.callback(
-    Output('control_div', 'style'),
+    Output('task_div', 'style'),
     [Input('section', 'value')],
 )
-def control_div(section):
+def task_div(section):
     if section == "Blackjack":
         return {'display': 'block'}
     else:
@@ -596,10 +621,33 @@ def control_div(section):
 
 
 @app.callback(
+    Output('policy_div', 'style'),
+    [Input('section', 'value')],
+)
+def task_div(section):
+    if section == "Blackjack":
+        return {'display': 'block'}
+    else:
+        return {'display': 'none'}
+
+
+# @app.callback(
+#     Output('behavior_div', 'style'),
+#     [Input('off_policy', 'value'),
+#      Input('section', 'value')],
+# )
+# def behavior_div(off_policy, section):
+#     if section == "Blackjack":
+#         if eval(off_policy):
+#             return {'display': 'block'}
+#     return {'display': 'none'}
+
+
+@app.callback(
     Output('exploration_div', 'style'),
     [
         Input('section', 'value'),
-        Input('control_div', 'style'),
+        Input('task_div', 'style'),
     ],
 )
 def exploration_div(section, control):
@@ -647,7 +695,7 @@ def prob_heads_div(section):
     [Input('section', 'value')],
 )
 def simulations_div(section):
-    if section == 'Stationary Bandits':
+    if section in ['Stationary Bandits']:
         return {'display': 'block'}
     else:
         return {'display': 'none'}
@@ -875,14 +923,15 @@ def gamma_value(section):
 def bandits_options(section):
     if section == 'Stationary Bandits':
         b = list(range(10, 101, 10))
+        return [{'label': k, 'value': k} for k in b]
     elif section in ['Non-Stationary Bandits']:
         b = list(range(1, 11))
+        return [{'label': k, 'value': k} for k in b]
     elif section in ['Action Preference']:
         b = [3]
-    # try:
-    return [{'label': k, 'value': k} for k in b]
-    # except UnboundLocalError:
-    #     return
+        return [{'label': k, 'value': k} for k in b]
+    else:
+        return []
 
 
 @app.callback(
@@ -958,9 +1007,11 @@ def disable_enable_button(clicked, state):
         State('goal', 'value'),
 
         # Blackjack
-        State('control', 'value'),
+        State('task', 'value'),
         State('exploration', 'value'),
         State('n_iter', 'value'),
+        State('off_policy', 'value'),
+        State('behavior', 'value'),
 
     ],
 )
@@ -969,13 +1020,15 @@ def gen_argstring(clicks, button_state, section,
                   in_place,
                   grid_size, gamma,
                   prob_heads, goal,
-                  control, exploration, n_iter
+                  task, exploration, n_iter,
+                  off_policy, behavior
                   ):
     print(clicks, button_state, section,
           simulations, steps, bandits, epsilons, weighting, alpha,
           in_place,
           grid_size, gamma,
           prob_heads, goal,
+          off_policy, behavior
           )
 
     if not clicks:
@@ -1120,60 +1173,120 @@ def gen_argstring(clicks, button_state, section,
 
     elif section == "Blackjack":
         bj = Blackjack()
-        if control == 'Policy evaluation':
-            return [
-                html.Div(
-                    dcc.Graph(
-                        id='value_estimate',
-                        figure=bj.plot_value_function(bj.mc_prediction(10000), 10000)
-                    ),
-                    className=f'six columns',
-                ),
-                html.Div(
-                    dcc.Graph(
-                        id='better_value_estimate',
-                        figure=bj.plot_value_function(bj.mc_prediction(500000), 500000)
-                    ),
-                    className=f'six columns',
-                )
-            ]
-        else:
-            if exploration == 'Exploring Starts':
-                av, policy, n_visits = bj.monte_carlo_es(n_iter)
-            elif exploration == 'Epsilon Greedy':
-                av, policy, n_visits = bj.monte_carlo_epsilon_greedy(n_iter)
-            sv = np.max(av, axis=0)
 
-            return [
-                html.Div(
-                    dcc.Graph(
-                        id='optimal_value_function',
-                        figure=bj.plot_value_function(sv)
+        if task == 'Evaluation':
+
+            if bool(off_policy):
+                return [
+                    html.Div(
+                        dcc.Graph(
+                            id='value_estimate',
+                            figure=bj.plot_value_function(bj.mc_prediction(10000), 10000)
+                        ),
+                        className=f'six columns',
                     ),
-                    className=f'three columns',
-                ),
-                html.Div(
-                    dcc.Graph(
-                        id='optimal_policy',
-                        figure=bj.plot_policy(policy)
+                    html.Div(
+                        dcc.Graph(
+                            id='better_value_estimate',
+                            figure=bj.plot_value_function(bj.mc_prediction(500000), 500000)
+                        ),
+                        className=f'six columns',
+                    )
+                ]
+
+            # elif task == 'Off-Policy Learning':
+            #     true_value = -0.27726
+            #     simulations = 100
+            #     ordinary_msr = np.zeros(n_iter)
+            #     weighted_msr = np.zeros(n_iter)
+            #     for _ in tqdm(range(simulations)):
+            #         ordinary_value, weighted_value = bj.monte_carlo_off_policy(n_iter)
+            #         ordinary_msr += np.power(ordinary_value - true_value, 2)
+            #         weighted_msr += np.power(weighted_value - true_value, 2)
+            #     ordinary_msr /= simulations
+            #     weighted_msr /= simulations
+            #
+            #     return [
+            #         html.Div(
+            #             dcc.Graph(
+            #                 id='learning_curves',
+            #                 figure=bj.plot_learning_curves(ordinary_msr, weighted_msr)
+            #             ),
+            #         )
+            #     ]
+
+            else:
+                q = bj.monte_carlo_off_policy_evalualtion(n_iter)
+                sv = np.max(q, axis=0)
+                return [
+                    html.Div(
+                        dcc.Graph(
+                            id='value_estimate',
+                            figure=bj.plot_value_function(sv)
+                        ),
+                        className=f'six columns',
                     ),
-                    className=f'three columns',
-                ),
-                html.Div(
-                    dcc.Graph(
-                        id='samples0',
-                        figure=bj.plot_n_visits(n_visits[0], 0)
+                ]
+
+        elif task == 'Control':
+            if off_policy == 'True':
+                q, policy = bj.monte_carlo_off_policy_control(n_iter)
+                sv = np.max(q, axis=0)
+                return [
+                    html.Div(
+                        dcc.Graph(
+                            id='optimal_value_function',
+                            figure=bj.plot_value_function(sv)
+                        ),
+                        className=f'six columns',
                     ),
-                    className=f'three columns',
-                ),
-                html.Div(
-                    dcc.Graph(
-                        id='samples1',
-                        figure=bj.plot_n_visits(n_visits[1], 1)
+                    html.Div(
+                        dcc.Graph(
+                            id='optimal_policy',
+                            figure=bj.plot_policy(policy)
+                        ),
+                        className=f'six columns',
                     ),
-                    className=f'three columns',
-                )
-            ]
+                ]
+
+            else:
+
+                if exploration == 'Exploring Starts':
+                    av, policy, n_visits = bj.monte_carlo_es(n_iter)
+                elif exploration == 'Epsilon Greedy':
+                    av, policy, n_visits = bj.monte_carlo_epsilon_greedy(n_iter)
+                sv = np.max(av, axis=0)
+
+                return [
+                    html.Div(
+                        dcc.Graph(
+                            id='optimal_value_function',
+                            figure=bj.plot_value_function(sv)
+                        ),
+                        className=f'three columns',
+                    ),
+                    html.Div(
+                        dcc.Graph(
+                            id='optimal_policy',
+                            figure=bj.plot_policy(policy)
+                        ),
+                        className=f'three columns',
+                    ),
+                    html.Div(
+                        dcc.Graph(
+                            id='samples0',
+                            figure=bj.plot_n_visits(n_visits[0], 0)
+                        ),
+                        className=f'three columns',
+                    ),
+                    html.Div(
+                        dcc.Graph(
+                            id='samples1',
+                            figure=bj.plot_n_visits(n_visits[1], 1)
+                        ),
+                        className=f'three columns',
+                    )
+                ]
 
     elif section == 'Tic Tac Toe':
         ttt = TicTacToe()
