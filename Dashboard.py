@@ -1317,18 +1317,18 @@ def gen_argstring(clicks, button_state, section,
 
     elif section == 'Random Walk':
         rw = RandomWalk()
-        n_iter = 100
-
-        alphas = {
-            'TD': [0.15, 0.1, 0.05],
-            'MC': [0.01, 0.02, 0.03, 0.04],
-        }
+        n_iter = 100  # N_EPISODES
 
         mc_values = rw.mc_prediction(n_iter)
         td_values = rw.td_prediction(n_iter)
         fig1 = rw.plot_state_values(mc_values)
         fig2 = rw.plot_state_values(td_values)
 
+        # rmse comparison
+        alphas = {
+            'TD': [0.15, 0.1, 0.05],
+            'MC': [0.01, 0.02, 0.03, 0.04],
+        }
         values = {
             'MC': dict(),
             'TD': dict()
@@ -1349,27 +1349,49 @@ def gen_argstring(clicks, button_state, section,
 
         fig3 = rw.plot_rmse(values)
 
+        # batch updates
+        errors = {
+            'MC': np.zeros((100, n_iter)),
+            'TD': np.zeros((100, n_iter)),
+        }
+
+        for i in tqdm(range(100)):
+            for algo in errors:
+                errors[algo][i] = rw.batch_updates(algo=algo)
+
+        for algo in errors:
+            errors[algo] = np.mean(errors[algo], axis=0)
+
+        fig4 = rw.plot_batch_rmse(errors)
+
         return [
             html.Div(
                     dcc.Graph(
                             id='values_mc',
                             figure=fig1,
                     ),
-                    className=f'four columns',
+                    className=f'three columns',
             ),
             html.Div(
                     dcc.Graph(
                             id='values_td',
                             figure=fig2,
                     ),
-                    className=f'four columns',
+                    className=f'three columns',
             ),
             html.Div(
                     dcc.Graph(
                             id='rmse',
                             figure=fig3,
                     ),
-                    className=f'four columns',
+                    className=f'three columns',
+            ),
+            html.Div(
+                    dcc.Graph(
+                            id='rmse_batch',
+                            figure=fig4,
+                    ),
+                    className=f'three columns',
             ),
 
         ]

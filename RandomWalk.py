@@ -11,6 +11,7 @@ class RandomWalk:
     def __init__(self):
         self.current_state = 3
         self.gamma = 1
+        self.true_values = np.array(list(range(1, 6))) / 6
 
     def walk(self):
         action = -1 if random.random() < 0.5 else 1
@@ -68,6 +69,40 @@ class RandomWalk:
                 state_values[s0] += alpha * (reward + self.gamma * state_values[s1] - v)
         return state_values_list
 
+    def batch_updates(self, algo: str = 'TD', n_episodes: int = 100, alpha: float = 0.001):
+        episodes = list()
+
+        state_values = np.array([0, 0.5, 0.5, 0.5, 0.5, 0.5, 1])
+
+        rmse = np.zeros(n_episodes)
+        for i in range(n_episodes):
+
+            episode = self.generate_episode()
+            episodes.append(episode)
+
+            while True:
+                increments = np.zeros(7)
+                for episode in episodes:
+                    if algo == 'MC':
+                        episode = dict(episode[::-1])  # remove duplicates and reverse the rollout
+                        g = 0
+                        for state, reward in episode.items():
+                            g = self.gamma * g + reward
+                            increments[state] += g - state_values[state]
+                    else:
+                        for j in range(len(episode) - 1):
+                            current_state, reward = episode[j]
+                            next_state = episode[j + 1][0]
+                            increments[current_state] += reward + state_values[next_state] - state_values[current_state]
+                increments *= alpha
+                if np.sum(np.abs(increments)) < 1e-3:
+                    break  # small increments imply convergence of the value function
+                state_values += increments
+
+            rmse[i] = np.sqrt(np.sum(np.power(state_values[1:-1] - self.true_values, 2)) / self.true_values.size)
+
+        return rmse
+
     @staticmethod
     def plot_state_values(values):
         true_values = np.array(list(range(1, 6))) / 6
@@ -102,7 +137,6 @@ class RandomWalk:
         return {'data': traces, 'layout': layout}
 
     def plot_rmse(self, values):
-        true_values = np.array(list(range(1, 6))) / 6
 
         traces = list()
         error = values.copy()
@@ -110,7 +144,7 @@ class RandomWalk:
             for alpha in error[algo].keys():
                 rmse = list()
                 for state_values in values[algo][alpha]:
-                    rmse.append(np.sqrt(np.sum(np.power(state_values - true_values, 2)) / true_values.size))
+                    rmse.append(np.sqrt(np.sum(np.power(state_values - self.true_values, 2)) / self.true_values.size))
 
                 traces.append(
                         go.Scatter(
@@ -128,3 +162,29 @@ class RandomWalk:
                 yaxis=dict(title='Error', titlefont=dict(size=13)),
         )
         return {'data': traces, 'layout': layout}
+
+    @staticmethod
+    def plot_batch_rmse(errors):
+        traces = list()
+        for algo, rmse in errors.items():
+            traces.append(
+                    go.Scatter(
+                            mode='lines',
+                            y=rmse,
+                            name=f'{algo}',
+                            marker=dict(color='crimson' if algo == 'MC' else 'skyblue')
+                    )
+            )
+        layout = dict(
+                height=600,
+                title='Batch Training',
+                showlegend=True,
+                xaxis=dict(title='Walks / Episodes', titlefont=dict(size=13)),
+                yaxis=dict(title='RMSE averaged over states', titlefont=dict(size=13)),
+        )
+        return {'data': traces, 'layout': layout}
+
+
+if __name__ == "__main__":
+    rw = RandomWalk()
+    ep = rw.generate_episode()
