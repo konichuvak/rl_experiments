@@ -1398,4 +1398,4 @@ def gen_argstring(clicks, button_state, section,
 
 
 if __name__ == '__main__':
-    app.run_server(host='0.0.0.0', port=13372, debug=True)
+    app.run_server(host='0.0.0.0', port=1337, debug=True)
