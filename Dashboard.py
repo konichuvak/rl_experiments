@@ -569,7 +569,19 @@ app.layout = html.Div(
                                 style={'display': 'none'},
                                 className='two columns',
                         ),
-
+                        html.Div(
+                                id='features_div',
+                                children=[
+                                    html.Label('Features', style={'textAlign': 'center'}),
+                                    dcc.Dropdown(
+                                            id='feature',
+                                            options=[{'label': s, 'value': s} for s in ['Simple', 'Stochastic Wind', 'King Moves']],
+                                            value='Simple'
+                                    )
+                                ],
+                                style={'display': 'none'},
+                                className='two columns',
+                        ),
                     ],
                     className='row'
             ),
@@ -623,6 +635,17 @@ app.css.append_css({
 
 #####################################################
 # STATIC CONTROLS SHOW/HIDE
+
+@app.callback(
+        Output('features_div', 'style'),
+        [Input('section', 'value')],
+)
+def task_div(section):
+    if section in ["Windy Gridworld"]:
+        return {'display': 'block'}
+    else:
+        return {'display': 'none'}
+
 
 @app.callback(
         Output('task_div', 'style'),
@@ -1028,6 +1051,9 @@ def disable_enable_button(clicked, state):
             State('off_policy', 'value'),
             State('behavior', 'value'),
 
+            # Windy Gridworld
+            State('feature', 'value'),
+
         ],
 )
 def gen_argstring(clicks, button_state, section,
@@ -1036,7 +1062,8 @@ def gen_argstring(clicks, button_state, section,
                   grid_size, gamma,
                   prob_heads, goal,
                   task, exploration, n_iter,
-                  off_policy, behavior
+                  off_policy, behavior,
+                  feature
                   ):
     print(clicks, button_state, section,
           simulations, steps, bandits, epsilons, weighting, alpha,
@@ -1133,6 +1160,7 @@ def gen_argstring(clicks, button_state, section,
         )
 
     elif section == 'Grid World':
+
         gw = GridWorld(grid_dim=grid_size, gamma=gamma)
         sv = gw.gridworld_policy_iteration(in_place=bool(in_place), theta=1e-4)
         fig = gw.plot_grid_world(sv)
@@ -1405,15 +1433,36 @@ def gen_argstring(clicks, button_state, section,
 
     elif section == "Windy Gridworld":
 
-        wg = WindyGridworld(length=7, width=10, gamma=1)
+        # king_moves = True if feature == 'King Moves' else False
+        # stochastic_wind = True if feature == 'Stochastic Wind' else False
+        wg = WindyGridworld(length=7, width=10, gamma=1, king_moves=False, stochastic_wind=False)
         action_values, timestamps, moves = wg.sarsa(n_episodes=170)
-        fig = wg.plot_learning_rate(timestamps)
-        return html.Div(
+        fig1 = wg.plot_learning_rate(timestamps)
+
+        wg = WindyGridworld(length=7, width=10, gamma=1, king_moves=True, stochastic_wind=False)
+        action_values, timestamps, moves = wg.sarsa(n_episodes=170)
+        fig2 = wg.plot_learning_rate(timestamps)
+
+        # wg = WindyGridworld(length=7, width=10, gamma=1, king_moves=False, stochastic_wind=True)
+        # action_values, timestamps, moves = wg.sarsa(n_episodes=170)
+        # fig3 = wg.plot_learning_rate(timestamps)
+        return [
+            html.Div(
                 dcc.Graph(
-                        id='statte_values',
-                        figure=fig,
+                        id='learning_rate',
+                        figure=fig1,
                 ),
-        )
+                className=f'three columns',
+
+            ),
+            html.Div(
+                    dcc.Graph(
+                            id='learning_rate_king_moves',
+                            figure=fig2,
+                    ),
+            className=f'three columns',
+            ),
+        ]
 
 
 if __name__ == '__main__':

@@ -10,16 +10,21 @@ random.seed(2)
 class WindyGridworld:
     """ Windy Grid World as described in Sutton & Barto (2018, Example 6.3) """
 
-    def __init__(self, length, width, gamma):
+    def __init__(self, length, width, gamma, king_moves: bool = False, stochastic_wind: bool = False):
         self.length = length
         self.width = width
         self.gamma = gamma
-        # self.actions = list(map(np.asarray, [[0, -1], [-1, 0], [0, 1], [1, 0]]))  # left, up, right, down
-
-        self.act = dict(zip([0, 1, 2, 3], ['up', 'left', 'down', 'right', ]))
-        self.actions = list(map(np.asarray, [[-1, 0], [0, -1], [1, 0], [0, 1]]))  # up, left, down, right
-        self.prob = 1 / len(self.actions)
-        self.wind = [0, 0, 0, 1, 1, 1, 2, 2, 1, 0]
+        if king_moves:
+            self.act = dict(zip(set(range(8)), ['up', 'left', 'down', 'right', 'up-right', 'up-left', 'down-right', 'down-left']))
+            self.actions = list(map(np.asarray, [[-1, 0], [0, -1], [1, 0], [0, 1], [-1, 1], [-1, -1], [1, 1], [1, -1]]))
+        else:
+            self.act = dict(zip([0, 1, 2, 3], ['up', 'left', 'down', 'right', ]))
+            self.actions = list(map(np.asarray, [[-1, 0], [0, -1], [1, 0], [0, 1]]))
+        if stochastic_wind:
+            self.stochastic_wind = stochastic_wind
+            pass
+        else:
+            self.wind = [0, 0, 0, 1, 1, 1, 2, 2, 1, 0]
         self.start = (3, 0)
         self.goal = (3, 7)
 
@@ -41,16 +46,15 @@ class WindyGridworld:
         return next_state, reward
 
     def sarsa(self, n_episodes: int = 100, alpha: float = 0.5, epsilon: float = 0.1):
-        action_values = np.zeros((self.length, self.width, 4))
-        policy = np.random.randint(0, 3, (self.length, self.width), dtype=np.int64)
-
-        possible_actions = {0, 1, 2, 3}
+        action_values = np.zeros((self.length, self.width, len(self.actions)))
+        policy = np.random.randint(0, len(self.actions), (self.length, self.width), dtype=np.int64)
+        possible_actions = set(range(len(self.actions)))
 
         def take_action(s):
             greedy_action = policy[s]
             choices = tuple(possible_actions - {greedy_action})
             if random.random() < epsilon:
-                a = choices[random.randint(0, 2)]
+                a = choices[random.randint(0, len(self.actions)-2)]
             else:
                 a = greedy_action
             return a
@@ -59,13 +63,16 @@ class WindyGridworld:
         num_moves = list()
         ts = -1
 
-        init_grid = np.zeros((self.length, self.width), dtype=np.int64)
+        # init_grid = np.zeros((self.length, self.width), dtype=np.int64)
+        # grid = init_grid
+
         for episode in tqdm(range(1, n_episodes + 1)):
 
             state, action = self.start, policy[self.start]
             sa = state[0], state[1], action
             moves = 0
             while state != self.goal:
+
                 # print(grid)
                 # print('next action:', self.act[action])
                 # print('next state:', state)
@@ -81,8 +88,8 @@ class WindyGridworld:
 
                 policy[state] = np.argmax(action_values[state])
 
-                grid = init_grid
-                grid[state] = 1
+                # grid = np.zeros((self.length, self.width), dtype=np.int64)
+                # grid[state] = 1
 
             timestamps.append(ts)
             num_moves.append(moves)
@@ -93,7 +100,7 @@ class WindyGridworld:
     def plot_learning_rate(timestamps):
         trace = go.Scatter(
                 mode='lines',
-                y=timestamps,
+                x=timestamps,
                 name='Learning Rate',
         )
 
@@ -102,10 +109,10 @@ class WindyGridworld:
                 title='SARSA Learning Rate',
                 showlegend=True,
                 xaxis=dict(
-                        title='Timestamps',
+                        title='Episodes',
                 ),
                 yaxis=dict(
-                        title='Episodes',
+                        title='Timestamps',
                 )
         )
         return {'data': [trace], 'layout': layout}
