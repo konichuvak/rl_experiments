@@ -9,11 +9,9 @@ class GridWorld:
     def __init__(self, grid_dim, gamma):
         self.grid_dim = grid_dim
         self.gamma = gamma
-        # left, up, right, down
-        self.actions = list(map(np.asarray, [[0, -1], [-1, 0], [0, 1], [1, 0]]))
+        self.actions = list(map(np.asarray, [[0, -1], [-1, 0], [0, 1], [1, 0]]))   # left, up, right, down
         self.prob = 1 / len(self.actions)
 
-    # Grid World
     def state_transition(self, state, action):
         """
         :param state:   tuple of (x, y) coordinates of the agent in the grid

@@ -19,6 +19,7 @@ from GamblersRuin import GamblersRuin
 from Blackjack import Blackjack
 from TicTacToe import TicTacToe
 from RandomWalk import RandomWalk
+from WindyGridworld import WindyGridworld
 
 external_stylesheets = ["https://unpkg.com/tachyons@4.10.0/css/tachyons.min.css"]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -187,6 +188,12 @@ app.layout = html.Div(
                                                 dcc.Tab(
                                                         label='Random Walk',
                                                         value='Random Walk',
+                                                        style=tab_style,
+                                                        selected_style=selected_style
+                                                ),
+                                                dcc.Tab(
+                                                        label='Windy Gridworld',
+                                                        value='Windy Gridworld',
                                                         style=tab_style,
                                                         selected_style=selected_style
                                                 ),
@@ -1395,6 +1402,18 @@ def gen_argstring(clicks, button_state, section,
             ),
 
         ]
+
+    elif section == "Windy Gridworld":
+
+        wg = WindyGridworld(length=7, width=10, gamma=1)
+        action_values, timestamps, moves = wg.sarsa(n_episodes=170)
+        fig = wg.plot_learning_rate(timestamps)
+        return html.Div(
+                dcc.Graph(
+                        id='statte_values',
+                        figure=fig,
+                ),
+        )
 
 
 if __name__ == '__main__':
