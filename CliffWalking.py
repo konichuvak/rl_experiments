@@ -11,20 +11,28 @@ class GridWorld(object):
 
     def __init__(self, width: int, height: int, actions: List[tuple] = ROOK_ACTIONS,
                  default_reward: float = -1,
-                 other_rewards: Dict[tuple, float] = dict()):
+                 other_rewards: Dict[tuple, float] = None):
         self.width = width
         self.height = height
         self.grid = np.ones((width, height))
         self.rewards = self._generate_rewards(default_reward, other_rewards)
         self.actions = list(map(np.array, actions))
 
-
     def _generate_rewards(self, default_reward, other_rewards):
-        # TODO: check if dict() has mutability issues as default method arg
+        """
+        Creates reward grid
+        :param default_reward:  default reward for transitioning to a given state in grid world
+        :param other_rewards:   dict with coordinates as keys and reward as values for other rewards
+        :return:
+        """
         rewards = self.grid * default_reward
+        if other_rewards is None:
+            other_rewards = {}
+
         for coord, r in other_rewards.items():
             rewards[coord] = r
         return rewards
+
 
 class CliffWalking(GridWorld):
 
