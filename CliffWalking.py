@@ -3,10 +3,6 @@ from typing import Dict, List
 import random
 import plotly.graph_objs as go
 
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
 ROOK_ACTIONS = frozenset({(0, -1), (-1, 0), (0, 1), (1, 0)})
 
 
@@ -14,11 +10,7 @@ class GridWorld(object):
 
     def __init__(self, width: int, height: int, actions: List[tuple] = ROOK_ACTIONS,
                  default_reward: float = -1,
-<<<<<<< Updated upstream
                  other_rewards: Dict[tuple, float] = None):
-=======
-                 other_rewards: Dict[tuple, float] = dict()):
->>>>>>> Stashed changes
         self.width = width
         self.height = height
         self.grid = np.ones((width, height))
@@ -26,7 +18,6 @@ class GridWorld(object):
         self.actions = list(map(np.array, actions))
 
     def _generate_rewards(self, default_reward, other_rewards):
-<<<<<<< Updated upstream
         """
         Creates reward grid
         :param default_reward:  default reward for transitioning to a given state in grid world
@@ -37,10 +28,6 @@ class GridWorld(object):
         if other_rewards is None:
             other_rewards = {}
 
-=======
-        # TODO: check if dict() has mutability issues as default method arg
-        rewards = self.grid * default_reward
->>>>>>> Stashed changes
         for coord, r in other_rewards.items():
             rewards[coord] = r
         return rewards
@@ -59,19 +46,6 @@ class CliffWalking(GridWorld):
         :param action:  performed action
         :return:        (i, j) tuple of the next state and the reward associated with the transition
         """
-<<<<<<< Updated upstream
-
-        state = np.array(state)
-        next_state = tuple(state + action)
-        x, y = next_state
-        reward = self.rewards[tuple(state)]
-
-        # check boundary conditions
-        if reward == -100:
-            next_state = self.start_state
-        elif x < 0 or y < 0 or x >= self.width or y >= self.height:
-            next_state = tuple(state)
-=======
         state = np.array(state)
         next_state = tuple(state + action)
         x, y = next_state
@@ -83,20 +57,10 @@ class CliffWalking(GridWorld):
         reward = self.rewards[tuple(next_state)]
         if reward == -100:
             next_state = self.start_state
->>>>>>> Stashed changes
 
         return next_state, reward
 
     def epsilon_greedy(self, action_index, epsilon):
-<<<<<<< Updated upstream
-        if random.random() < epsilon:
-            action_index = random.randint(0,len(self.actions)-1)
-        return action_index
-
-    def control(self, algo: str = 'q_learning', n_episodes: int = 100, alpha: float = 0.1, gamma: float = 1, epsilon: float = 0.1, verbose: bool = False):
-        q_shape = [len(self.actions)] + list(self.grid.shape)
-        q_values = np.random.random(size=q_shape)
-=======
         choices = tuple(set(range(len(self.actions))) - {action_index})
         if random.random() < epsilon:
             action_index = choices[random.randint(0, len(self.actions) - 2)]
@@ -110,31 +74,10 @@ class CliffWalking(GridWorld):
         if verbose:
             init_grid = np.zeros((self.width, self.height), dtype=np.int64)
             grid = init_grid
->>>>>>> Stashed changes
 
         per_episode_rewards = []
         for e in range(n_episodes):
             reward_sum = 0
-<<<<<<< Updated upstream
-            state = self.start_state
-            while state != self.goal:
-                # take action based on policy
-                a = np.argmax(q_values[:, state[0], state[1]])
-                a = self.epsilon_greedy(a, epsilon)
-                state_next, reward = self.state_transition(state, self.actions[a])
-                q_index = tuple([a] + list(state))
-
-                a_next = [np.argmax(q_values[:, state_next[0], state_next[1]])]
-                if algo == 'sarsa':
-                    a_next = self.epsilon_greedy(a_next, epsilon)
-                q_index_next = tuple([a_next] + list(state_next))
-
-                q_values[q_index] += alpha * (reward + gamma*(q_values[q_index_next]) - q_values[q_index])
-                state = state_next
-                reward_sum += reward
-                if reward == -100:
-                    break
-=======
 
             # pick initial action
             state = self.start_state
@@ -169,7 +112,6 @@ class CliffWalking(GridWorld):
                     grid = np.zeros((self.width, self.height), dtype=np.int64)
                     grid[state] = 1
 
->>>>>>> Stashed changes
             per_episode_rewards.append(reward_sum)
         return per_episode_rewards
 
@@ -181,11 +123,7 @@ class CliffWalking(GridWorld):
                     mode='lines',
                     y=reward,
                     name=algo,
-<<<<<<< Updated upstream
-                )
-=======
             )
->>>>>>> Stashed changes
             )
 
         layout = dict(
