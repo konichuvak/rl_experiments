@@ -15,37 +15,39 @@ class WindyGridworld:
         self.width = width
         self.gamma = gamma
         if king_moves:
-            self.act = dict(zip(set(range(8)), ['up', 'left', 'down', 'right', 'up-right', 'up-left', 'down-right', 'down-left']))
+            self.act = dict(
+                zip(set(range(8)), ['up', 'left', 'down', 'right', 'up-right', 'up-left', 'down-right', 'down-left']))
             self.actions = list(map(np.asarray, [[-1, 0], [0, -1], [1, 0], [0, 1], [-1, 1], [-1, -1], [1, 1], [1, -1]]))
         else:
             self.act = dict(zip([0, 1, 2, 3], ['up', 'left', 'down', 'right', ]))
             self.actions = list(map(np.asarray, [[-1, 0], [0, -1], [1, 0], [0, 1]]))
-        if stochastic_wind:
-            self.stochastic_wind = stochastic_wind
-            pass
-        else:
-            self.wind = [0, 0, 0, 1, 1, 1, 2, 2, 1, 0]
+
+        self.stochastic_wind = stochastic_wind
+        self.wind_strength = [0, 0, 0, 1, 1, 1, 2, 2, 1, 0]
         self.start = (3, 0)
         self.goal = (3, 7)
 
     def state_transition(self, state, action):
         """
-        :param state:   tuple of (x, y) coordinates of the agent in the grid
+        :param state:   tuple of (y, x) coordinates of the agent in the grid
         :param action:  performed action
         :return:        (i, j) tuple of the next state and the reward associated with the transition
         """
         state = np.array(state)
-        x, y = tuple(map(int, state + action))
-        next_state = (max(0, x - self.wind[state[1]]), y)  # add some wind
+        y, x = tuple(map(int, state + action))
+        y = max(0, y - self.wind_strength[state[1]])
+        if self.stochastic_wind and self.wind_strength[state[1]]:
+            y += random.randint(-1, 1)
+        next_state = (y, x)  # add some wind
 
         # check boundary conditions
-        if x < 0 or y < 0 or x >= self.length or y >= self.width:
+        if y < 0 or x < 0 or y >= self.length or x >= self.width:
             next_state = tuple(state)
 
         reward = -1
         return next_state, reward
 
-    def sarsa(self, n_episodes: int = 100, alpha: float = 0.5, epsilon: float = 0.1):
+    def sarsa(self, n_episodes: int = 100, alpha: float = 0.5, epsilon: float = 0.1, verbose: bool = False):
         action_values = np.zeros((self.length, self.width, len(self.actions)))
         policy = np.random.randint(0, len(self.actions), (self.length, self.width), dtype=np.int64)
         possible_actions = set(range(len(self.actions)))
@@ -54,7 +56,7 @@ class WindyGridworld:
             greedy_action = policy[s]
             choices = tuple(possible_actions - {greedy_action})
             if random.random() < epsilon:
-                a = choices[random.randint(0, len(self.actions)-2)]
+                a = choices[random.randint(0, len(self.actions) - 2)]
             else:
                 a = greedy_action
             return a
@@ -63,19 +65,22 @@ class WindyGridworld:
         num_moves = list()
         ts = -1
 
-        # init_grid = np.zeros((self.length, self.width), dtype=np.int64)
-        # grid = init_grid
+        if verbose:
+            init_grid = np.zeros((self.length, self.width), dtype=np.int64)
+            grid = init_grid
 
         for episode in tqdm(range(1, n_episodes + 1)):
 
             state, action = self.start, policy[self.start]
             sa = state[0], state[1], action
             moves = 0
+            prev_policy = policy.copy()
             while state != self.goal:
 
-                # print(grid)
-                # print('next action:', self.act[action])
-                # print('next state:', state)
+                if verbose:
+                    print(grid)
+                    print('next action:', self.act[action])
+                    print('next state:', state)
 
                 moves += 1
                 ts += 1
@@ -88,8 +93,12 @@ class WindyGridworld:
 
                 policy[state] = np.argmax(action_values[state])
 
-                # grid = np.zeros((self.length, self.width), dtype=np.int64)
-                # grid[state] = 1
+                if verbose:
+                    grid = np.zeros((self.length, self.width), dtype=np.int64)
+                    grid[state] = 1
+
+            if np.array_equal(prev_policy, policy) and episode > 10:
+                break  # policy converged
 
             timestamps.append(ts)
             num_moves.append(moves)
@@ -97,7 +106,7 @@ class WindyGridworld:
         return action_values, timestamps, num_moves
 
     @staticmethod
-    def plot_learning_rate(timestamps):
+    def plot_learning_rate(timestamps, title):
         trace = go.Scatter(
                 mode='lines',
                 x=timestamps,
@@ -106,13 +115,13 @@ class WindyGridworld:
 
         layout = dict(
                 height=700,
-                title='SARSA Learning Rate',
+                title=title,
                 showlegend=True,
                 xaxis=dict(
-                        title='Episodes',
+                        title='Timestamps',
                 ),
                 yaxis=dict(
-                        title='Timestamps',
+                        title='Episodes',
                 )
         )
         return {'data': [trace], 'layout': layout}

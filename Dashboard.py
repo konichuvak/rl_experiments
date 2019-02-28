@@ -20,6 +20,7 @@ from Blackjack import Blackjack
 from TicTacToe import TicTacToe
 from RandomWalk import RandomWalk
 from WindyGridworld import WindyGridworld
+from CliffWalking import CliffWalking
 
 external_stylesheets = ["https://unpkg.com/tachyons@4.10.0/css/tachyons.min.css"]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -197,6 +198,13 @@ app.layout = html.Div(
                                                         style=tab_style,
                                                         selected_style=selected_style
                                                 ),
+                                                dcc.Tab(
+                                                        label='Cliff Walking',
+                                                        value='Cliff Walking',
+                                                        style=tab_style,
+                                                        selected_style=selected_style
+                                                ),
+
 
                                             ],
                                             content_style={
@@ -575,7 +583,8 @@ app.layout = html.Div(
                                     html.Label('Features', style={'textAlign': 'center'}),
                                     dcc.Dropdown(
                                             id='feature',
-                                            options=[{'label': s, 'value': s} for s in ['Simple', 'Stochastic Wind', 'King Moves']],
+                                            options=[{'label': s, 'value': s} for s in
+                                                     ['Simple', 'Stochastic Wind', 'King Moves']],
                                             value='Simple'
                                     )
                                 ],
@@ -1437,22 +1446,22 @@ def gen_argstring(clicks, button_state, section,
         # stochastic_wind = True if feature == 'Stochastic Wind' else False
         wg = WindyGridworld(length=7, width=10, gamma=1, king_moves=False, stochastic_wind=False)
         action_values, timestamps, moves = wg.sarsa(n_episodes=170)
-        fig1 = wg.plot_learning_rate(timestamps)
+        fig1 = wg.plot_learning_rate(timestamps, title="Rook Moves")
 
         wg = WindyGridworld(length=7, width=10, gamma=1, king_moves=True, stochastic_wind=False)
         action_values, timestamps, moves = wg.sarsa(n_episodes=170)
-        fig2 = wg.plot_learning_rate(timestamps)
+        fig2 = wg.plot_learning_rate(timestamps, title="King Moves")
 
-        # wg = WindyGridworld(length=7, width=10, gamma=1, king_moves=False, stochastic_wind=True)
-        # action_values, timestamps, moves = wg.sarsa(n_episodes=170)
-        # fig3 = wg.plot_learning_rate(timestamps)
+        wg = WindyGridworld(length=7, width=10, gamma=1, king_moves=True, stochastic_wind=True)
+        action_values, timestamps, moves = wg.sarsa(n_episodes=170)
+        fig3 = wg.plot_learning_rate(timestamps, title='Stochastic Wind')
         return [
             html.Div(
-                dcc.Graph(
-                        id='learning_rate',
-                        figure=fig1,
-                ),
-                className=f'three columns',
+                    dcc.Graph(
+                            id='learning_rate',
+                            figure=fig1,
+                    ),
+                    className=f'four columns',
 
             ),
             html.Div(
@@ -1460,7 +1469,43 @@ def gen_argstring(clicks, button_state, section,
                             id='learning_rate_king_moves',
                             figure=fig2,
                     ),
-            className=f'three columns',
+                    className=f'four columns',
+            ),
+            html.Div(
+                    dcc.Graph(
+                            id='learning_rate_stochastic_wind',
+                            figure=fig3,
+                    ),
+                    className=f'four columns',
+            ),
+        ]
+
+    elif section == "Cliff Walking":
+        cliff_rewards = {(i, -1): -100 for i in range(1, 11)}
+        cw = CliffWalking(width=12, height=4, other_rewards=cliff_rewards)
+
+        simulations = 100
+        n_episodes = 500
+
+        algos = ['sarsa', 'q_learning']
+        rewards = dict(zip(algos, [np.zeros((simulations, n_episodes)), np.zeros((simulations, n_episodes))]))
+
+        for i in tqdm(range(simulations)):
+            for algo in algos:
+                rewards[algo][i] = cw.control(algo=algo, n_episodes=n_episodes, verbose=False)
+
+        for algo, sims in rewards.items():
+            rewards[algo] = np.mean(sims, axis=0)
+        fig = cw.plot_rewards(rewards)
+
+        return [
+            html.Div(
+                    dcc.Graph(
+                            id='rewards',
+                            figure=fig,
+                    ),
+                    className=f'four columns',
+
             ),
         ]
 
