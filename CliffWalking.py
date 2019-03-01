@@ -61,12 +61,11 @@ class CliffWalking(GridWorld):
         return next_state, reward
 
     def epsilon_greedy(self, action_index, epsilon):
-        choices = tuple(set(range(len(self.actions))) - {action_index})
         if random.random() < epsilon:
-            action_index = choices[random.randint(0, len(self.actions) - 2)]
+            action_index = random.randint(0, len(self.actions) - 1)
         return action_index
 
-    def control(self, algo: str = 'q_learning', n_episodes: int = 100, alpha: float = 0.5, gamma: float = 1,
+    def expected_sarsa(self, n_episodes: int = 100, alpha: float = 0.5, gamma: float = 1,
                 epsilon: float = 0.1, verbose: bool = False):
         q_shape = [len(self.actions)] + list(self.grid.shape)
         q_values = np.zeros(shape=q_shape)
@@ -79,7 +78,6 @@ class CliffWalking(GridWorld):
         for e in range(n_episodes):
             reward_sum = 0
 
-            # pick initial action
             state = self.start_state
             a = np.argmax(q_values[:, state[0], state[1]])
             a = self.epsilon_greedy(a, epsilon)
@@ -92,20 +90,151 @@ class CliffWalking(GridWorld):
                     print('next action:', a)
 
                 # take action based on policy
-                if algo == 'q_learning':
-                    a = np.argmax(q_values[:, state[0], state[1]])
-                    a = self.epsilon_greedy(a, epsilon)
+                state_next, reward = self.state_transition(state, self.actions[a])
+                a_next = np.argmax(q_values[:, state_next[0], state_next[1]])
+
+                q_index = a, state[0], state[1]
+                q_index_next = a_next, state_next[0], state_next[1]
+
+                q_values_next = (1 - epsilon) * q_values[q_index_next] + \
+                              sum([q_values[a, state[0], state[1]] * epsilon/len(self.actions) for a in range(len(self.actions))])
+                q_values[q_index] += alpha * (reward + gamma * q_values_next - q_values[q_index])
+
+                state, a = state_next, a_next
+                reward_sum += reward
+
+                if verbose:
+                    grid = np.zeros((self.width, self.height), dtype=np.int64)
+                    grid[state] = 1
+
+            per_episode_rewards.append(reward_sum)
+        return per_episode_rewards
+
+    def sarsa(self, n_episodes: int = 100, alpha: float = 0.5, gamma: float = 1,
+                epsilon: float = 0.1, verbose: bool = False):
+        q_shape = [len(self.actions)] + list(self.grid.shape)
+        q_values = np.zeros(shape=q_shape)
+
+        if verbose:
+            init_grid = np.zeros((self.width, self.height), dtype=np.int64)
+            grid = init_grid
+
+        per_episode_rewards = []
+        for e in range(n_episodes):
+            reward_sum = 0
+
+            state = self.start_state
+            a = np.argmax(q_values[:, state[0], state[1]])
+            a = self.epsilon_greedy(a, epsilon)
+
+            while state != self.goal:
+
+                if verbose:
+                    print(grid.T)
+                    print('current state:', state)
+                    print('next action:', a)
 
                 state_next, reward = self.state_transition(state, self.actions[a])
                 a_next = np.argmax(q_values[:, state_next[0], state_next[1]])
-                if algo == 'sarsa':
-                    a_next = self.epsilon_greedy(a_next, epsilon)
+                a_next = self.epsilon_greedy(a_next, epsilon)
 
                 q_index = a, state[0], state[1]
                 q_index_next = a_next, state_next[0], state_next[1]
                 q_values[q_index] += alpha * (reward + gamma * (q_values[q_index_next]) - q_values[q_index])
 
                 state, a = state_next, a_next
+                reward_sum += reward
+
+                if verbose:
+                    grid = np.zeros((self.width, self.height), dtype=np.int64)
+                    grid[state] = 1
+
+            per_episode_rewards.append(reward_sum)
+        return per_episode_rewards
+
+    def q_learning(self, n_episodes: int = 100, alpha: float = 0.5, gamma: float = 1,
+                epsilon: float = 0.1, verbose: bool = False):
+        q_shape = [len(self.actions)] + list(self.grid.shape)
+        q_values = np.zeros(shape=q_shape)
+
+        if verbose:
+            init_grid = np.zeros((self.width, self.height), dtype=np.int64)
+            grid = init_grid
+
+        per_episode_rewards = []
+        for e in range(n_episodes):
+            reward_sum = 0
+            state = self.start_state
+
+            while state != self.goal:
+
+                if verbose:
+                    print(grid.T)
+                    print('current state:', state)
+                    print('next action:', a)
+
+                a = np.argmax(q_values[:, state[0], state[1]])
+                a = self.epsilon_greedy(a, epsilon)
+
+                state_next, reward = self.state_transition(state, self.actions[a])
+                a_next = np.argmax(q_values[:, state_next[0], state_next[1]])
+
+                q_index = a, state[0], state[1]
+                q_index_next = a_next, state_next[0], state_next[1]
+                q_values[q_index] += alpha * (reward + gamma * (q_values[q_index_next]) - q_values[q_index])
+
+                state = state_next
+                reward_sum += reward
+
+                if verbose:
+                    grid = np.zeros((self.width, self.height), dtype=np.int64)
+                    grid[state] = 1
+
+            per_episode_rewards.append(reward_sum)
+        return per_episode_rewards
+
+    def double_q_learning(self, n_episodes: int = 100, alpha: float = 0.5, gamma: float = 1,
+                epsilon: float = 0.1, verbose: bool = False):
+
+        q_shape = [len(self.actions)] + list(self.grid.shape)
+        q_values = np.zeros(shape=q_shape)
+        q2_values = q_values.copy()
+
+        if verbose:
+            init_grid = np.zeros((self.width, self.height), dtype=np.int64)
+            grid = init_grid
+
+        per_episode_rewards = []
+        for e in range(n_episodes):
+
+            reward_sum = 0
+            state = self.start_state
+
+            while state != self.goal:
+
+                if verbose:
+                    print(grid.T)
+                    print('current state:', state)
+                    print('next action:', a)
+
+                a = np.argmax(q_values[:, state[0], state[1]])
+                a2 = np.argmax(q2_values[:, state[0], state[1]])
+                a = self.epsilon_greedy(a if q_values.flatten()[a] >= q2_values.flatten()[a2] else a2, epsilon)
+                q_index = a, state[0], state[1]
+
+                # take action based on policy
+                state_next, reward = self.state_transition(state, self.actions[a])
+
+                if random.random() < 0.5:
+                    a_next = np.argmax(q_values[:, state_next[0], state_next[1]])
+                    q_index_next = a_next, state_next[0], state_next[1]
+                    q_values[q_index] += alpha * (reward + gamma * (q2_values[q_index_next]) - q_values[q_index])
+                else:
+                    a_next = np.argmax(q2_values[:, state_next[0], state_next[1]])
+                    q_index_next = a_next, state_next[0], state_next[1]
+                    q2_values[q_index] += alpha * (reward + gamma * (q_values[q_index_next]) - q2_values[q_index])
+
+                state = state_next
                 reward_sum += reward
 
                 if verbose:

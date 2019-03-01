@@ -1360,85 +1360,127 @@ def gen_argstring(clicks, button_state, section,
         )
 
     elif section == 'Random Walk':
-        rw = RandomWalk()
-        n_iter = 100  # N_EPISODES
+        mode = 'n-steps'
 
-        mc_values = rw.mc_prediction(n_iter)
-        td_values = rw.td_prediction(n_iter)
-        fig1 = rw.plot_state_values(mc_values)
-        fig2 = rw.plot_state_values(td_values)
+        if mode == 'TD vs MC':
 
-        # rmse comparison
-        alphas = {
-            'TD': [0.15, 0.1, 0.05],
-            'MC': [0.01, 0.02, 0.03, 0.04],
-        }
-        values = {
-            'MC': dict(),
-            'TD': dict()
-        }
-        for alpha in list(alphas.values())[0]:
-            values['MC'][alpha] = np.zeros((100, 100, 5))
-            values['TD'][alpha] = np.zeros((100, 100, 5))
-            for i in range(100):
-                mc_values = rw.mc_prediction(n_episodes=n_iter, alpha=alpha)
-                mc_values = [np.array(list(episode.values())[1:-1]) for episode in mc_values]
-                values['MC'][alpha][i] = np.array(mc_values)
+            length = 5
+            n_iter = 100
+            simulations = 100
 
-                td_values = rw.td_prediction(n_episodes=n_iter, alpha=alpha)
-                td_values = [np.array(list(episode.values())[1:-1]) for episode in td_values]
-                values['TD'][alpha][i] = np.array(td_values)
-            values['MC'][alpha] = np.mean(values['MC'][alpha], axis=0)
-            values['TD'][alpha] = np.mean(values['TD'][alpha], axis=0)
+            rw = RandomWalk(length)
+            mc_values = rw.mc_prediction(n_iter)
+            td_values = rw.td_prediction(n_iter)
+            fig1 = rw.plot_state_values(mc_values)
+            fig2 = rw.plot_state_values(td_values)
 
-        fig3 = rw.plot_rmse(values)
+            # rmse comparison
+            alphas = {
+                'TD': [0.15, 0.1, 0.05],
+                'MC': [0.01, 0.02, 0.03, 0.04],
+            }
+            values = {
+                'MC': dict(),
+                'TD': dict()
+            }
+            for alpha in list(alphas.values())[0]:
+                values['MC'][alpha] = np.zeros((simulations, n_iter, length))
+                values['TD'][alpha] = np.zeros((simulations, n_iter, length))
+                for i in range(simulations):
+                    mc_values = rw.mc_prediction(n_episodes=n_iter, alpha=alpha)
+                    mc_values = [np.array(list(episode.values())[1:-1]) for episode in mc_values]
+                    values['MC'][alpha][i] = np.array(mc_values)
 
-        # batch updates
-        errors = {
-            'MC': np.zeros((100, n_iter)),
-            'TD': np.zeros((100, n_iter)),
-        }
+                    td_values = rw.td_prediction(n_episodes=n_iter, alpha=alpha)
+                    td_values = [np.array(list(episode.values())[1:-1]) for episode in td_values]
+                    values['TD'][alpha][i] = np.array(td_values)
+                values['MC'][alpha] = np.mean(values['MC'][alpha], axis=0)
+                values['TD'][alpha] = np.mean(values['TD'][alpha], axis=0)
 
-        for i in tqdm(range(100)):
+            fig3 = rw.plot_rmse(values, list(values.keys()))
+
+            # batch updates
+            errors = {
+                'MC': np.zeros((simulations, n_iter)),
+                'TD': np.zeros((simulations, n_iter)),
+            }
+
+            for i in tqdm(range(simulations)):
+                for algo in errors:
+                    errors[algo][i] = rw.batch_updates(algo=algo)
+
             for algo in errors:
-                errors[algo][i] = rw.batch_updates(algo=algo)
+                errors[algo] = np.mean(errors[algo], axis=0)
 
-        for algo in errors:
-            errors[algo] = np.mean(errors[algo], axis=0)
+            fig4 = rw.plot_batch_rmse(errors)
 
-        fig4 = rw.plot_batch_rmse(errors)
+            return [
+                html.Div(
+                        dcc.Graph(
+                                id='values_mc',
+                                figure=fig1,
+                        ),
+                        className=f'three columns',
+                ),
+                html.Div(
+                        dcc.Graph(
+                                id='values_td',
+                                figure=fig2,
+                        ),
+                        className=f'three columns',
+                ),
+                html.Div(
+                        dcc.Graph(
+                                id='rmse',
+                                figure=fig3,
+                        ),
+                        className=f'three columns',
+                ),
+                html.Div(
+                        dcc.Graph(
+                                id='rmse_batch',
+                                figure=fig4,
+                        ),
+                        className=f'three columns',
+                ),
 
-        return [
-            html.Div(
-                    dcc.Graph(
-                            id='values_mc',
-                            figure=fig1,
-                    ),
-                    className=f'three columns',
-            ),
-            html.Div(
-                    dcc.Graph(
-                            id='values_td',
-                            figure=fig2,
-                    ),
-                    className=f'three columns',
-            ),
-            html.Div(
-                    dcc.Graph(
-                            id='rmse',
-                            figure=fig3,
-                    ),
-                    className=f'three columns',
-            ),
-            html.Div(
-                    dcc.Graph(
-                            id='rmse_batch',
-                            figure=fig4,
-                    ),
-                    className=f'three columns',
-            ),
+            ]
 
-        ]
+        elif mode == 'n-steps':
+            length = 19
+            n_iter = 10
+            simulations = 100
+
+            rw = RandomWalk(length)
+
+            alphas = [alpha / 10 for alpha in range(1, 11)]
+            ns = [2**p for p in range(10)]
+
+            # alphas = dict(zip(ns, [alphas for _ in range(len(ns))]))
+            values = dict(zip(ns, [dict() for _ in range(len(ns))]))
+
+            for n in ns:
+                for alpha in alphas:
+                    print(n, alpha)
+                    values[n][alpha] = np.zeros((simulations, n_iter, length))
+                    values[n][alpha] = np.zeros((simulations, n_iter, length))
+                    for i in range(simulations):
+                        state_values = rw.n_step_td_prediction(n=n, n_episodes=n_iter, alpha=alpha, seed=i)
+                        state_values = [np.array(list(episode.values())[1:-1]) for episode in state_values]
+                        values[n][alpha][i] = np.array(state_values)
+                    values[n][alpha] = np.mean(values[n][alpha], axis=0)
+
+            fig3 = rw.plot_rmse(values, list(values.keys()))
+
+            return [
+                html.Div(
+                        dcc.Graph(
+                                id='values',
+                                figure=fig3,
+                        ),
+                        className=f'three columns',
+                ),
+            ]
 
     elif section == "Windy Gridworld":
 
@@ -1487,26 +1529,52 @@ def gen_argstring(clicks, button_state, section,
         simulations = 100
         n_episodes = 500
 
-        algos = ['sarsa', 'q_learning']
-        rewards = dict(zip(algos, [np.zeros((simulations, n_episodes)), np.zeros((simulations, n_episodes))]))
+        algos = ['sarsa', 'q_learning', 'expected_sarsa', 'double_q_learning']
+        rewards = dict(zip(algos, [np.zeros((simulations, n_episodes)) for _ in range(len(algos))]))
 
         for i in tqdm(range(simulations)):
             for algo in algos:
-                rewards[algo][i] = cw.control(algo=algo, n_episodes=n_episodes, verbose=False)
+                rewards[algo][i] = getattr(cw, algo)(n_episodes=n_episodes, verbose=False)
 
         for algo, sims in rewards.items():
             rewards[algo] = np.mean(sims, axis=0)
-        fig = cw.plot_rewards(rewards)
+        fig1 = cw.plot_rewards(rewards)
+
+        # alphas = [alpha / 10 for alpha in range(1, 11)]
+        # per_episode_rewards = {
+        #     'asymptotic': dict(zip(alphas, [np.zeros((50000, 100000)) for _ in range(len(alphas))])),
+        #     'interim'   : dict(zip(alphas, [np.zeros((10, 100)) for _ in range(len(alphas))])),
+        # }
+        # for cv in ['asymptotic', 'interim']:
+        #     for alpha in tqdm(alphas):
+        #         for algo in ['sarsa', 'q_learninig', 'expected_sarsa']:
+        #             if cv == 'asymptotic':
+        #                 for i in range(50000):
+        #                     per_episode_rewards[cv][alpha][i] = cw.control(n_episodes=100000, algo=algo, alpha=alpha)
+        #             else:
+        #                 for i in range(10):
+        #                     per_episode_rewards[cv][alpha][i] = cw.control(n_episodes=100, algo=algo, alpha=alpha)
+        #         per_episode_rewards[alpha] = np.mean(per_episode_rewards[alpha], axis=0)
+        #
+        # fig2 = cw.compare_performance(per_episode_rewards)
 
         return [
             html.Div(
                     dcc.Graph(
                             id='rewards',
-                            figure=fig,
+                            figure=fig1,
                     ),
-                    className=f'four columns',
+                    className=f'six columns',
 
             ),
+            # html.Div(
+            #         dcc.Graph(
+            #                 id='comparisons',
+            #                 figure=fig2,
+            #         ),
+            #         className=f'six columns',
+            #
+            # ),
         ]
 
 
