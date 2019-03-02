@@ -591,6 +591,21 @@ app.layout = html.Div(
                                 style={'display': 'none'},
                                 className='two columns',
                         ),
+
+                        html.Div(
+                                id='comparison_div',
+                                children=[
+                                    html.Label('Compare algorithms', style={'textAlign': 'center'}),
+                                    dcc.Dropdown(
+                                            id='comparison',
+                                            options=[{'label': s, 'value': s} for s in
+                                                     ['TD vs MC', 'n-steps']],
+                                            value='TD vs MC'
+                                    )
+                                ],
+                                style={'display': 'none'},
+                                className='two columns',
+                        ),
                     ],
                     className='row'
             ),
@@ -705,11 +720,22 @@ def exploration_div(section, control):
 
 
 @app.callback(
+        Output('comparison_div', 'style'),
+        [Input('section', 'value')],
+)
+def comparison_div(section):
+    if section in ["Random Walk"]:
+        return {'display': 'block'}
+    else:
+        return {'display': 'none'}
+
+
+@app.callback(
         Output('n_iter_div', 'style'),
         [Input('section', 'value')],
 )
 def n_iter_div(section):
-    if section in ["Blackjack", "Tic Tac Toe", 'Random Walk']:
+    if section in ["Blackjack", "Tic Tac Toe"]:
         return {'display': 'block'}
     else:
         return {'display': 'none'}
@@ -1063,6 +1089,9 @@ def disable_enable_button(clicked, state):
             # Windy Gridworld
             State('feature', 'value'),
 
+            # Random Walk
+            State('comparison', 'value')
+
         ],
 )
 def gen_argstring(clicks, button_state, section,
@@ -1072,7 +1101,8 @@ def gen_argstring(clicks, button_state, section,
                   prob_heads, goal,
                   task, exploration, n_iter,
                   off_policy, behavior,
-                  feature
+                  feature,
+                    comparison
                   ):
     print(clicks, button_state, section,
           simulations, steps, bandits, epsilons, weighting, alpha,
@@ -1360,9 +1390,8 @@ def gen_argstring(clicks, button_state, section,
         )
 
     elif section == 'Random Walk':
-        mode = 'n-steps'
 
-        if mode == 'TD vs MC':
+        if comparison == 'TD vs MC':
 
             length = 5
             n_iter = 100
@@ -1383,21 +1412,17 @@ def gen_argstring(clicks, button_state, section,
                 'MC': dict(),
                 'TD': dict()
             }
-            for alpha in list(alphas.values())[0]:
-                values['MC'][alpha] = np.zeros((simulations, n_iter, length))
-                values['TD'][alpha] = np.zeros((simulations, n_iter, length))
-                for i in range(simulations):
-                    mc_values = rw.mc_prediction(n_episodes=n_iter, alpha=alpha)
-                    mc_values = [np.array(list(episode.values())[1:-1]) for episode in mc_values]
-                    values['MC'][alpha][i] = np.array(mc_values)
 
-                    td_values = rw.td_prediction(n_episodes=n_iter, alpha=alpha)
-                    td_values = [np.array(list(episode.values())[1:-1]) for episode in td_values]
-                    values['TD'][alpha][i] = np.array(td_values)
-                values['MC'][alpha] = np.mean(values['MC'][alpha], axis=0)
-                values['TD'][alpha] = np.mean(values['TD'][alpha], axis=0)
+            for n in ('TD', 'MC'):
+                for alpha in alphas[n]:
+                    values[n][alpha] = np.zeros((simulations, n_iter, length))
+                    for i in range(simulations):
+                        v = getattr(rw, f'{n.lower()}_prediction')(n_episodes=n_iter, alpha=alpha)
+                        values[n][alpha][i] = np.array([np.array(list(episode.values())[1:-1]) for episode in v])
 
-            fig3 = rw.plot_rmse(values, list(values.keys()))
+                    values[n][alpha] = np.mean(values[n][alpha], axis=0)
+
+            fig3 = rw.plot_rmse(values, tuple(values.keys()))
 
             # batch updates
             errors = {
@@ -1405,11 +1430,9 @@ def gen_argstring(clicks, button_state, section,
                 'TD': np.zeros((simulations, n_iter)),
             }
 
-            for i in tqdm(range(simulations)):
-                for algo in errors:
-                    errors[algo][i] = rw.batch_updates(algo=algo)
-
             for algo in errors:
+                for i in tqdm(range(simulations)):
+                    errors[algo][i] = rw.batch_updates(algo=algo)
                 errors[algo] = np.mean(errors[algo], axis=0)
 
             fig4 = rw.plot_batch_rmse(errors)
@@ -1446,31 +1469,28 @@ def gen_argstring(clicks, button_state, section,
 
             ]
 
-        elif mode == 'n-steps':
+        elif comparison == 'n-steps':
             length = 19
             n_iter = 10
             simulations = 100
 
             rw = RandomWalk(length)
 
-            alphas = [alpha / 10 for alpha in range(1, 11)]
-            ns = [2**p for p in range(10)]
+            alphas = [alpha / 10 for alpha in range(11)]
+            steps = [2**p for p in range(10)]
+            values = dict(zip(steps, [dict() for _ in range(len(steps))]))
 
-            # alphas = dict(zip(ns, [alphas for _ in range(len(ns))]))
-            values = dict(zip(ns, [dict() for _ in range(len(ns))]))
-
-            for n in ns:
+            for n in steps:
                 for alpha in alphas:
                     print(n, alpha)
                     values[n][alpha] = np.zeros((simulations, n_iter, length))
                     values[n][alpha] = np.zeros((simulations, n_iter, length))
                     for i in range(simulations):
                         state_values = rw.n_step_td_prediction(n=n, n_episodes=n_iter, alpha=alpha, seed=i)
-                        state_values = [np.array(list(episode.values())[1:-1]) for episode in state_values]
-                        values[n][alpha][i] = np.array(state_values)
-                    values[n][alpha] = np.mean(values[n][alpha], axis=0)
+                        sv = np.array([np.array(list(episode.values())[1:-1]) for episode in state_values])
+                        values[n][alpha][i] = sv
 
-            fig3 = rw.plot_rmse(values, list(values.keys()))
+            fig3 = rw.plot_rmse(values, tuple(values.keys()))
 
             return [
                 html.Div(
@@ -1484,8 +1504,6 @@ def gen_argstring(clicks, button_state, section,
 
     elif section == "Windy Gridworld":
 
-        # king_moves = True if feature == 'King Moves' else False
-        # stochastic_wind = True if feature == 'Stochastic Wind' else False
         wg = WindyGridworld(length=7, width=10, gamma=1, king_moves=False, stochastic_wind=False)
         action_values, timestamps, moves = wg.sarsa(n_episodes=170)
         fig1 = wg.plot_learning_rate(timestamps, title="Rook Moves")
