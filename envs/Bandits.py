@@ -2,19 +2,14 @@ import numpy as np
 import plotly.graph_objs as go
 from plotly import tools
 from random import random, sample
+from utils import cache
 
 
 class Bandits:
     """ Selected exercises from Chapter 2 of Sutton & Barto (2019) """
 
-    ##################################################################################################################
-    # DATA LOADING
-
     ####################################################################################################################
-    # UTILS
-
-    ####################################################################################################################
-    # BANDITS
+    # ALGORITHMS
 
     def kArmedTestbed(self, k, nplays, epsilon):
         """
@@ -127,7 +122,7 @@ class Bandits:
         return h_mat
 
     ####################################################################################################################
-    # MAIN GRAPH
+    # PLOTTING
 
     @staticmethod
     def generate_plot(nplays, rewards, optimality):

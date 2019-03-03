@@ -1,5 +1,6 @@
 import numpy as np
 import random
+
 random.seed(1)
 from random import random, randint
 from tqdm import tqdm
@@ -182,7 +183,7 @@ class TicTacToe:
         q_values = dict()
         n_visits = q_values.copy()
         policy = {np.zeros((3, 3)).tostring(): (1, 1)}
-        possible_actions = list(zip([0, 0, 0, 1, 1, 1, 2, 2, 2], [0, 1, 2]*3))
+        possible_actions = list(zip([0, 0, 0, 1, 1, 1, 2, 2, 2], [0, 1, 2] * 3))
 
         gamma = 0.9
         for _ in tqdm(range(n_iters)):
@@ -193,9 +194,9 @@ class TicTacToe:
             episode, reward = self.play(policy)
 
             g = 0
-            rewards = [0]*(len(episode)-1) + [reward]
+            rewards = [0] * (len(episode) - 1) + [reward]
             for state, action in reversed(episode):
-                g = gamma*g + rewards.pop()
+                g = gamma * g + rewards.pop()
 
                 # first visit Monte Carlo (irrelevant in tic-tac-toe due to abscence of recurrent states)
                 # episode = episode[:-1]
@@ -237,7 +238,6 @@ class TicTacToe:
                     policy[state] = tuple(valid_moves[ix])
 
         return q_values, policy, n_visits
-
 
     def plot_boards(self, states, q_values, policy, samples):
         fig = tools.make_subplots(len(states), 4,
@@ -281,12 +281,13 @@ class TicTacToe:
                 showscale=False,
                 zmin=0,
             )
-            fig.append_trace(s, i+1, 1)
-            fig.append_trace(qq, i+1, 2)
-            fig.append_trace(pi, i+1, 3)
-            fig.append_trace(sample, i+1, 4)
+            fig.append_trace(s, i + 1, 1)
+            fig.append_trace(qq, i + 1, 2)
+            fig.append_trace(pi, i + 1, 3)
+            fig.append_trace(sample, i + 1, 4)
 
         return fig
+
 
 if __name__ == "__main__":
     ttt = TicTacToe()

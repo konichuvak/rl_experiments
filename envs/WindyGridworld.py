@@ -108,21 +108,21 @@ class WindyGridworld:
     @staticmethod
     def plot_learning_rate(timestamps, title):
         trace = go.Scatter(
-                mode='lines',
-                x=timestamps,
-                name='Learning Rate',
+            mode='lines',
+            x=timestamps,
+            name='Learning Rate',
         )
 
         layout = dict(
-                height=700,
-                title=title,
-                showlegend=True,
-                xaxis=dict(
-                        title='Timestamps',
-                ),
-                yaxis=dict(
-                        title='Episodes',
-                )
+            height=700,
+            title=title,
+            showlegend=True,
+            xaxis=dict(
+                title='Timestamps',
+            ),
+            yaxis=dict(
+                title='Episodes',
+            )
         )
         return {'data': [trace], 'layout': layout}
 

@@ -4,6 +4,8 @@ import _pickle
 import sys
 import os
 
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 class DevNull(object):
     def write(self, arg):
@@ -39,7 +41,7 @@ def threaded(f, daemon=False):
     return wrap
 
 
-def cache(cachedir=f'/RL/codes/cached_graphs'):
+def cache(cachedir=os.path.join(ROOT_DIR, 'cache')):
     def decorator(func):
         def wrapper(self, *args, **kwargs):
             print(f'caching {func.__name__} at {cachedir}')
@@ -57,6 +59,3 @@ def cache(cachedir=f'/RL/codes/cached_graphs'):
         return wrapper
 
     return decorator
-
-
-

@@ -66,7 +66,7 @@ class CliffWalking(GridWorld):
         return action_index
 
     def expected_sarsa(self, n_episodes: int = 100, alpha: float = 0.5, gamma: float = 1,
-                epsilon: float = 0.1, verbose: bool = False):
+                       epsilon: float = 0.1, verbose: bool = False):
         q_shape = [len(self.actions)] + list(self.grid.shape)
         q_values = np.zeros(shape=q_shape)
 
@@ -97,7 +97,8 @@ class CliffWalking(GridWorld):
                 q_index_next = a_next, state_next[0], state_next[1]
 
                 q_values_next = (1 - epsilon) * q_values[q_index_next] + \
-                              sum([q_values[a, state[0], state[1]] * epsilon/len(self.actions) for a in range(len(self.actions))])
+                                sum([q_values[a, state[0], state[1]] * epsilon / len(self.actions) for a in
+                                     range(len(self.actions))])
                 q_values[q_index] += alpha * (reward + gamma * q_values_next - q_values[q_index])
 
                 state, a = state_next, a_next
@@ -111,7 +112,7 @@ class CliffWalking(GridWorld):
         return per_episode_rewards
 
     def sarsa(self, n_episodes: int = 100, alpha: float = 0.5, gamma: float = 1,
-                epsilon: float = 0.1, verbose: bool = False):
+              epsilon: float = 0.1, verbose: bool = False):
         q_shape = [len(self.actions)] + list(self.grid.shape)
         q_values = np.zeros(shape=q_shape)
 
@@ -153,7 +154,7 @@ class CliffWalking(GridWorld):
         return per_episode_rewards
 
     def q_learning(self, n_episodes: int = 100, alpha: float = 0.5, gamma: float = 1,
-                epsilon: float = 0.1, verbose: bool = False):
+                   epsilon: float = 0.1, verbose: bool = False):
         q_shape = [len(self.actions)] + list(self.grid.shape)
         q_values = np.zeros(shape=q_shape)
 
@@ -194,7 +195,7 @@ class CliffWalking(GridWorld):
         return per_episode_rewards
 
     def double_q_learning(self, n_episodes: int = 100, alpha: float = 0.5, gamma: float = 1,
-                epsilon: float = 0.1, verbose: bool = False):
+                          epsilon: float = 0.1, verbose: bool = False):
 
         q_shape = [len(self.actions)] + list(self.grid.shape)
         q_values = np.zeros(shape=q_shape)
@@ -249,20 +250,20 @@ class CliffWalking(GridWorld):
         traces = list()
         for algo, reward in rewards.items():
             traces.append(go.Scatter(
-                    mode='lines',
-                    y=reward,
-                    name=algo,
+                mode='lines',
+                y=reward,
+                name=algo,
             )
             )
 
         layout = dict(
-                height=700,
-                showlegend=True,
-                xaxis=dict(
-                        title='Epsiodes',
-                ),
-                yaxis=dict(
-                        title='Sum of rewards per episode',
-                )
+            height=700,
+            showlegend=True,
+            xaxis=dict(
+                title='Epsiodes',
+            ),
+            yaxis=dict(
+                title='Sum of rewards per episode',
+            )
         )
         return {'data': traces, 'layout': layout}

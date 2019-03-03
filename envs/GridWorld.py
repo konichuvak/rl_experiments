@@ -9,7 +9,7 @@ class GridWorld:
     def __init__(self, grid_dim, gamma):
         self.grid_dim = grid_dim
         self.gamma = gamma
-        self.actions = list(map(np.asarray, [[0, -1], [-1, 0], [0, 1], [1, 0]]))   # left, up, right, down
+        self.actions = list(map(np.asarray, [[0, -1], [-1, 0], [0, 1], [1, 0]]))  # left, up, right, down
         self.prob = 1 / len(self.actions)
 
     def state_transition(self, state, action):

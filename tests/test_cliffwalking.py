@@ -1,5 +1,5 @@
 import unittest
-from CliffWalking import *
+from envs.CliffWalking import *
 
 
 class CliffWalkingTestCase(unittest.TestCase):

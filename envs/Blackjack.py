@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
-from Utilities import NoPrint
 import plotly.graph_objs as go
 from plotly import tools
 from tqdm import tqdm
 import random
+from utils import NoPrint
 
 np.random.seed(1)
 random.seed(1)
@@ -257,9 +257,10 @@ class Blackjack:
         q_values = np.zeros((2, 2, 10, 10))
         n_visits = q_values.copy()
         self.target_policy = np.zeros((2, 10, 10))
-        self.behaviour_policy = lambda state: random.randint(0, 1) if random.random() < epsilon else self.target_policy[state]
+        self.behaviour_policy = lambda state: random.randint(0, 1) if random.random() < epsilon else self.target_policy[
+            state]
 
-        for k in tqdm(range(1, n_episodes+1)):
+        for k in tqdm(range(1, n_episodes + 1)):
             with NoPrint():
                 episode = self.generate_episode()
 
@@ -391,8 +392,8 @@ class Blackjack:
                 q_values[action][state] = q + w * (g - q) / c
 
                 if action == self.target_policy[state]:
-                    p = 1                           # prob of taking an action under target policy
-                    b = 1 - epsilon + epsilon/2     # prob of taking an action under behaviour policy
+                    p = 1  # prob of taking an action under target policy
+                    b = 1 - epsilon + epsilon / 2  # prob of taking an action under behaviour policy
                     w = w * p / b
                 else:
                     break
@@ -409,7 +410,8 @@ class Blackjack:
         self.target_policy = np.zeros((2, 10, 10))
 
         epsilon = 0.1
-        self.behaviour_policy = lambda state: random.randint(0, 1) if random.random() < epsilon else self.target_policy[state]
+        self.behaviour_policy = lambda state: random.randint(0, 1) if random.random() < epsilon else self.target_policy[
+            state]
 
         for _ in tqdm(range(n_episodes)):
             with NoPrint():
@@ -445,7 +447,7 @@ class Blackjack:
                 if action != greedy_acton:
                     break
 
-                w /= (1 - epsilon + epsilon/2)
+                w /= (1 - epsilon + epsilon / 2)
         return q_values, self.target_policy
 
     @staticmethod
