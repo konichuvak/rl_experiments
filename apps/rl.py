@@ -4,9 +4,6 @@ from dash.dependencies import Input, Output, State
 from style import *
 from app import app
 
-import numpy as np
-from tqdm import tqdm
-
 from envs.GridWorld import GridWorld
 # from CarRental import CarRental
 from envs.GamblersRuin import GamblersRuin
@@ -16,6 +13,12 @@ from envs.TicTacToe import TicTacToe
 from envs.RandomWalk import RandomWalk
 from envs.WindyGridworld import WindyGridworld
 from envs.CliffWalking import CliffWalking
+
+import numpy as np
+from tqdm import tqdm
+import ray
+
+ray.init(ignore_reinit_error=True)
 
 layout = html.Div([
     html.Div(
@@ -414,6 +417,22 @@ layout = html.Div([
                         style={'display': 'none'},
                         className='two columns',
                     ),
+                    html.Div(
+                        id='walk_length_div',
+                        children=[
+                            html.Label('Walk Length', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='walk_length',
+                                placeholder='10000',
+                                type='number',
+                                step=5,
+                                value=5,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='one columns',
+                    ),
 
                     html.Div(
                         id='comparison_div',
@@ -464,6 +483,17 @@ layout = html.Div([
         }
     )
 ])
+
+
+@app.callback(
+    Output('walk_length_div', 'style'),
+    [Input('section', 'value')],
+)
+def task_div(section):
+    if section in ["Random Walk"]:
+        return {'display': 'block'}
+    else:
+        return {'display': 'none'}
 
 
 @app.callback(
@@ -670,6 +700,13 @@ def move_car_cost_div(section):
 
 #####################################################
 
+@app.callback(
+    Output('walk_length', 'value'),
+    [Input('comparison', 'value')],
+)
+def walk_length(comparison):
+    return 5 if comparison in ["TD vs MC"] else 19
+
 
 @app.callback(
     Output('gamma', 'value'),
@@ -728,7 +765,8 @@ def disable_enable_button(clicked, state):
         State('feature', 'value'),
 
         # Random Walk
-        State('comparison', 'value')
+        State('comparison', 'value'),
+        State('walk_length', 'value')
 
     ],
 )
@@ -739,7 +777,7 @@ def RL(clicks, button_state, section,
        task, exploration, n_iter,
        off_policy, behavior,
        feature,
-       comparison
+       comparison, walk_length
        ):
     print(clicks, button_state, section,
           in_place,
@@ -948,13 +986,13 @@ def RL(clicks, button_state, section,
 
         if comparison == 'TD vs MC':
 
-            length = 5
+            length = walk_length
             n_iter = 100
-            simulations = 100
+            sims = 100
 
             rw = RandomWalk(length)
-            mc_values = rw.mc_prediction(n_iter)
-            td_values = rw.td_prediction(n_iter)
+            mc_values = ray.get(rw.mc_prediction.remote(rw, n_iter))
+            td_values = ray.get(rw.td_prediction.remote(rw, n_iter))
             fig1 = rw.plot_state_values(mc_values)
             fig2 = rw.plot_state_values(td_values)
 
@@ -963,31 +1001,31 @@ def RL(clicks, button_state, section,
                 'TD': [0.15, 0.1, 0.05],
                 'MC': [0.01, 0.02, 0.03, 0.04],
             }
-            values = {
+
+            true_values = np.arange(-length + 1, length + 1, 2) / (length + 1.)
+            errors = {
                 'MC': dict(),
                 'TD': dict()
             }
 
             for n in ('TD', 'MC'):
-                for alpha in alphas[n]:
-                    values[n][alpha] = np.zeros((simulations, n_iter, length))
-                    for i in range(simulations):
-                        v = getattr(rw, f'{n.lower()}_prediction')(n_episodes=n_iter, alpha=alpha)
-                        values[n][alpha][i] = np.array([np.array(list(episode.values())[1:-1]) for episode in v])
+                for alpha in tqdm(alphas[n]):
+                    state_values = [getattr(rw, f'{n.lower()}_prediction').remote(rw, n_iter, alpha) for _ in range(sims)]
+                    state_values = np.asarray(ray.get(state_values))
+                    rmse = np.sum(np.sqrt(np.sum(np.power(state_values - true_values, 2), axis=2)), axis=0)
+                    rmse /= sims * np.sqrt(length)
+                    errors[n][alpha] = rmse
 
-                    values[n][alpha] = np.mean(values[n][alpha], axis=0)
-
-            fig3 = rw.plot_rmse(values, tuple(values.keys()))
+            fig3 = rw.plot_rmse(errors, list(range(n_iter)))
 
             # batch updates
             errors = {
-                'MC': np.zeros((simulations, n_iter)),
-                'TD': np.zeros((simulations, n_iter)),
+                'MC': np.zeros((sims, n_iter)),
+                'TD': np.zeros((sims, n_iter)),
             }
 
             for algo in errors:
-                for i in tqdm(range(simulations)):
-                    errors[algo][i] = rw.batch_updates(algo=algo)
+                errors[algo] = np.asarray(ray.get([rw.batch_updates.remote(rw, algo) for _ in tqdm(range(sims))]))
                 errors[algo] = np.mean(errors[algo], axis=0)
 
             fig4 = rw.plot_batch_rmse(errors)
@@ -1021,31 +1059,37 @@ def RL(clicks, button_state, section,
                     ),
                     className=f'three columns',
                 ),
-
             ]
 
         elif comparison == 'n-steps':
-            length = 19
-            n_iter = 10
-            simulations = 100
+            """
+            Exercise 7.3 Why do you think a larger random walk task (19 states instead of 5) was
+            used in the examples of this chapter? Would a smaller walk have shifted the advantage
+            to a different value of n? How about the change in left-side outcome from 0 to −1 made
+            in the larger walk? Do you think that made any difference in the best value of n?
+            """
+
+            length = walk_length
+            episodes = 10
+            sims = 100
 
             rw = RandomWalk(length)
 
-            alphas = [alpha / 10 for alpha in range(11)]
+            alphas = [alpha / 10 for alpha in range(0, 11)]
             steps = [2 ** p for p in range(10)]
-            values = dict(zip(steps, [dict() for _ in range(len(steps))]))
 
-            for n in steps:
-                for alpha in alphas:
-                    print(n, alpha)
-                    values[n][alpha] = np.zeros((simulations, n_iter, length))
-                    values[n][alpha] = np.zeros((simulations, n_iter, length))
-                    for i in range(simulations):
-                        state_values = rw.n_step_td_prediction(n=n, n_episodes=n_iter, alpha=alpha, seed=i)
-                        sv = np.array([np.array(list(episode.values())[1:-1]) for episode in state_values])
-                        values[n][alpha][i] = sv
+            true_values = np.arange(-length + 1, length + 1, 2) / (length + 1.)
+            errors = dict(zip(steps, [alphas.copy() for _ in range(len(steps))]))
 
-            fig3 = rw.plot_rmse(values, tuple(values.keys()))
+            for n_step in tqdm(steps):
+                for i, alpha in enumerate(alphas):
+                    state_values = [rw.n_step_td_prediction.remote(rw, n_step, episodes, alpha) for _ in range(sims)]
+                    state_values = np.asarray(ray.get(state_values))
+                    rmse = np.sum(np.sqrt(np.sum(np.power(state_values - true_values, 2), axis=2)))
+                    rmse /= sims * n_iter * np.sqrt(length)
+                    errors[n_step][i] = rmse
+
+            fig3 = rw.plot_rmse(errors, alphas)
 
             return [
                 html.Div(
@@ -1053,7 +1097,7 @@ def RL(clicks, button_state, section,
                         id='values',
                         figure=fig3,
                     ),
-                    className=f'three columns',
+                    className=f'six columns',
                 ),
             ]
 

@@ -5,6 +5,9 @@ from envs.Bandits import Bandits
 from style import *
 import numpy as np
 from tqdm import tqdm
+import ray
+
+ray.init(ignore_reinit_error=True)
 
 # Options for dropdowns and selectors
 epsilon = [0.5, 0.1, 0.01, 0]
@@ -441,7 +444,7 @@ def BANDITS(clicks, button_state, section,
     nplays = steps
 
     if section == 'Stationary Bandits':
-        print(steps, k, epsilon, M)
+
         bandits = Bandits()
         if isinstance(epsilons, float):
             epsilons = [epsilons]
@@ -450,16 +453,15 @@ def BANDITS(clicks, button_state, section,
         optimality_ratio = {e: list() for e in epsilons}
 
         for e in tqdm(epsilons):
-            expected_rewards, observed_rewards, actions = np.zeros((M, k)), np.zeros((M, nplays)), np.zeros((M, nplays))
-            for i in tqdm(range(M)):
-                expected_rewards[i], observed_rewards[i], actions[i] = bandits.kArmedTestbed(k, nplays, e)
+            res = np.array(ray.get([bandits.kArmedTestbed.remote(k, nplays, e) for _ in range(M)]))
+            expected_rewards, observed_rewards, actions = map(np.stack, [res[:, i] for i in range(3)])
 
             avg_reward[e] = np.average(observed_rewards, axis=0)  # compute average rewards
             opt = np.argmax(expected_rewards, axis=1).reshape(M, 1) + np.ones((M, 1))  # take argmax over all states
             act = np.ma.masked_values(actions, opt).mask  # filter the optimal actions
             optimality_ratio[e] = np.average(act, axis=0)
 
-        fig = bandits.generate_plot(steps, k, epsilon, M, rewards=avg_reward, optimality=optimality_ratio)
+        fig = bandits.generate_plot(steps, rewards=avg_reward, optimality=optimality_ratio)
         return html.Div(
             dcc.Graph(
                 id='results',
@@ -488,7 +490,7 @@ def BANDITS(clicks, button_state, section,
 
         children = list()
         for j in range(k):
-            fig = bandits.plot_non_stationary(j + 1, nplays, epsilon, weighting, alpha,
+            fig = bandits.plot_non_stationary(j + 1, nplays,
                                               expected_rewards=[expected_rewards_uni[:, j], expected_rewards_exp[:, j]],
                                               qs=[qmat_uni[:, j], qmat_exp[:, j]])
             children.append(
@@ -507,7 +509,7 @@ def BANDITS(clicks, button_state, section,
         h_mat = bandits.action_preference(int(nplays), k=k)
         children = list()
         for j in range(k):
-            fig = bandits.plot_gradient_bandit(j + 1, nplays, alpha, h_mat=h_mat[:, j])
+            fig = bandits.plot_gradient_bandit(j + 1, nplays, h_mat=h_mat[:, j])
             children.append(
                 dcc.Graph(
                     id=f'results_{j}',

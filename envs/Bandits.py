@@ -3,7 +3,7 @@ import plotly.graph_objs as go
 from plotly import tools
 from random import random, sample
 from utils import cache
-
+import ray
 
 class Bandits:
     """ Selected exercises from Chapter 2 of Sutton & Barto (2019) """
@@ -11,7 +11,9 @@ class Bandits:
     ####################################################################################################################
     # ALGORITHMS
 
-    def kArmedTestbed(self, k, nplays, epsilon):
+    @staticmethod
+    @ray.remote
+    def kArmedTestbed(k, nplays, epsilon):
         """
         :param k:           the number of armed bandits in the experiment
         :param nplays:      the number of plays in a given run

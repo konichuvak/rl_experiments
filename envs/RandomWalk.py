@@ -1,9 +1,7 @@
 import numpy as np
 import plotly.graph_objs as go
-from tqdm import tqdm
 import random
-
-random.seed(1)
+import ray
 
 
 class RandomWalk:
@@ -35,6 +33,7 @@ class RandomWalk:
                 state_reward.append((self.current_state, 0))
                 self.walk()
 
+    @ray.remote
     def mc_prediction(self, n_episodes: int = 100, first_visit: bool = True, alpha: float = 0.1):
 
         state_values_list = list()
@@ -43,8 +42,8 @@ class RandomWalk:
                 [self.termination_reward[0]] + [0.5 for _ in range(self.length)] + [self.termination_reward[1]]
         ))
 
-        for _ in tqdm(range(1, n_episodes + 1)):
-            state_values_list.append(state_values.copy())
+        for _ in range(1, n_episodes + 1):
+            state_values_list.append(np.array(list(state_values.values())[1:-1]))
             episode = self.generate_episode()
             g = 0
             if first_visit:
@@ -58,6 +57,7 @@ class RandomWalk:
 
         return state_values_list
 
+    @ray.remote
     def td_prediction(self, n_episodes: int = 100, alpha: float = 0.1):
 
         state_values_list = list()
@@ -66,8 +66,8 @@ class RandomWalk:
                 [self.termination_reward[0]] + [0.5 for _ in range(self.length)] + [self.termination_reward[1]]
         ))
 
-        for _ in tqdm(range(1, n_episodes + 1)):
-            state_values_list.append(state_values.copy())
+        for _ in range(1, n_episodes + 1):
+            state_values_list.append(np.array(list(state_values.values())[1:-1]))
             self.current_state = self.init_state
             reward = 0
             while self.current_state not in self.terminal_states:
@@ -77,7 +77,11 @@ class RandomWalk:
                 state_values[s0] += alpha * (reward + self.gamma * state_values[s1] - v)
         return state_values_list
 
-    def n_step_td_prediction(self, n: int, n_episodes: int = 10, alpha: float = 0.1, seed: int = 1):
+    @ray.remote
+    def n_step_td_prediction(self, n: int, n_episodes: int = 10, alpha: float = 0.1):
+        """
+        returns an array of length n_episodes of state values (np.arrays of shape (lenght of the random walk, )
+        """
 
         self.termination_reward = (-1, 1)
         self.true_values = np.arange(-self.length + 1, self.length + 1, 2) / (self.length + 1.)
@@ -107,7 +111,7 @@ class RandomWalk:
                     else:
                         rewards.append(0)
 
-                tau = t - n + 1  # tau is the time whose state’s estimate is being updated
+                tau = t - n + 1  # tau is the time whose state's estimate is being updated
                 if tau >= 0:
                     G = 0
                     for i in range(tau + 1, min(tau + n, T) + 1):
@@ -121,10 +125,11 @@ class RandomWalk:
                 if tau == T - 1:
                     break
 
-            state_values_list.append(state_values.copy())
+            state_values_list.append(np.array(list(state_values.values())[1:-1]))
 
-        return state_values_list
+        return np.asarray(state_values_list)
 
+    @ray.remote
     def batch_updates(self, algo: str = 'TD', n_episodes: int = 100, alpha: float = 0.001):
 
         state_values = np.array([0] + [0.5 for _ in range(self.length)] + [1])
@@ -159,68 +164,52 @@ class RandomWalk:
 
         return rmse
 
-    def plot_rmse(self, values, steps: tuple = ('MC', 'TD')):
+    def plot_rmse(self, errors, x_axis: list):
 
         traces = list()
-        error = values.copy()
-        for n in steps:
-            rmse_per_alpha = list()
-            alphas = error[n].keys()
-            for alpha in alphas:
 
-                if steps == ('MC', 'TD'):
-                    rmse = list()
-                    for state_values in values[n][alpha]:
-                        rmse.append(
-                            np.sqrt(np.sum(np.power(state_values - self.true_values, 2)) / self.true_values.size))
+        if tuple(errors.keys()) == ('MC', 'TD'):
+            for n, alphas in errors.items():
+                for alpha, rmse_per_episode in alphas.items():
                     traces.append(
                             go.Scatter(
                                     mode='lines',
-                                    y=rmse,
+                                    y=rmse_per_episode,
                                     name=f'{n}_alpha={alpha}',
                                     marker=dict(color='crimson' if n == 'MC' else 'skyblue')
                             )
                     )
 
-                else:
-                    rmse = 0
-                    for sim in values[n][alpha]:
-                        for episodic_values in sim:
-                            rmse += np.sqrt(
-                                np.sum(np.power(episodic_values - self.true_values, 2)) / self.true_values.size)
-
-                    simulations, episodes = values[n][alpha].shape
-                    rmse /= simulations * episodes
-                    rmse_per_alpha.append(rmse)
-
-            if steps != ('MC', 'TD'):
+        else:
+            for step, rmse_per_alpha in errors.items():
                 traces.append(
                         go.Scatter(
                                 mode='lines',
                                 y=rmse_per_alpha,
-                                x=list(alphas),
-                                name=f'n={n}',
+                                x=x_axis,
+                                name=f'n={step}',
                         )
                 )
+
         layout = dict(
                 height=700,
                 title='Empirical RMSE averaged over states',
                 showlegend=True,
-                xaxis=dict(title='Alphas' if steps != ('MC', 'TD') else 'Walks / Episodes', titlefont=dict(size=13)),
+                xaxis=dict(title='Alphas' if x_axis != ('MC', 'TD') else 'Walks / Episodes', titlefont=dict(size=13)),
                 yaxis=dict(title='Error', titlefont=dict(size=13)),
         )
         return {'data': traces, 'layout': layout}
 
     def plot_state_values(self, values, iters: tuple = (0, 1, 10, 100)):
         traces = list()
+
         for i, value in enumerate(values):
             if i not in iters:
                 continue
-            estimated_values = list(values[i].values())[1:-1]
             traces.append(
                     go.Scatter(
                             mode='lines',
-                            y=estimated_values,
+                            y=value,
                             x=['A', 'B', 'C', 'D', 'E'],
                             name=f'iteration {i}'
                     )
