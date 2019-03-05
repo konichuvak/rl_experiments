@@ -1146,12 +1146,13 @@ def RL(clicks, button_state, section,
         simulations = 100
         n_episodes = 500
 
-        algos = ['sarsa', 'q_learning', 'expected_sarsa', 'double_q_learning']
+        algos = ['n_step_sarsa', 'sarsa', 'q_learning', 'expected_sarsa', 'double_q_learning']
         rewards = dict(zip(algos, [np.zeros((simulations, n_episodes)) for _ in range(len(algos))]))
 
-        for i in tqdm(range(simulations)):
-            for algo in algos:
-                rewards[algo][i] = getattr(cw, algo)(n_episodes=n_episodes, verbose=False)
+        for algo in tqdm(algos):
+            res = [getattr(cw, algo).remote(cw, n_episodes=n_episodes, verbose=False) for _ in range(simulations)]
+            for i, sim in enumerate(ray.get(res)):
+                rewards[algo][i] = sim
 
         for algo, sims in rewards.items():
             rewards[algo] = np.mean(sims, axis=0)
@@ -1181,8 +1182,6 @@ def RL(clicks, button_state, section,
                     id='rewards',
                     figure=fig1,
                 ),
-                className=f'six columns',
-
             ),
             # html.Div(
             #         dcc.Graph(
