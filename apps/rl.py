@@ -1,6 +1,8 @@
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
+
 from style import *
 from app import app
 
@@ -486,47 +488,64 @@ layout = html.Div([
 
 
 @app.callback(
-    Output('walk_length_div', 'style'),
+    [
+        # random walk
+        Output('comparison_div', 'style'),
+        Output('walk_length_div', 'style'),
+
+        # blackjack
+        Output('features_div', 'style'),
+        Output('task_div', 'style'),
+        Output('policy_div', 'style'),
+
+        Output('n_iter_div', 'style'),          # tic-tac-toe, blackjack
+
+        # gambler's ruin
+        Output('prob_heads_div', 'style'),
+        Output('goal_div', 'style'),
+
+        # grid world
+        Output('grid_size_div', 'style'),
+        Output('gamma_div', 'style'),
+
+        # car rental
+        Output('max_cars_div', 'style'),
+        Output('max_move_cars_div', 'style'),
+        Output('rental_rate_div', 'style'),
+        Output('return_rate_div', 'style'),
+        Output('rental_credit_div', 'style'),
+        Output('move_car_cost_div', 'style'),
+
+    ],
     [Input('section', 'value')],
 )
-def task_div(section):
+def show_hide(section):
+    display = ({'display': 'none'}, {'display': 'block'})
+
+    print(section)
     if section in ["Random Walk"]:
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
+        return [display[1]]*2 + [display[0]]*14
 
+    elif section in ["Windy Gridworld"]:
+        return [display[0]]*2 + [display[1]] + [display[0]]*13
 
-@app.callback(
-    Output('features_div', 'style'),
-    [Input('section', 'value')],
-)
-def task_div(section):
-    if section in ["Windy Gridworld"]:
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
+    elif section in ['Blackjack']:
+        return [display[0]]*3 + [display[1]]*3 + [display[0]]*10
 
+    elif section in ['Tic Tac Toe']:
+        return [display[0]]*5 + [display[1]]*1 + [display[0]]*10
 
-@app.callback(
-    Output('task_div', 'style'),
-    [Input('section', 'value')],
-)
-def task_div(section):
-    if section == "Blackjack":
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
+    elif section in ["Gambler's Ruin"]:
+        return [display[0]]*6 + [display[1]]*2 + [display[0]]*8
 
+    elif section in ["Grid World"]:
+        return [display[0]]*8 + [display[1]]*2 + [display[0]] * 6
 
-@app.callback(
-    Output('policy_div', 'style'),
-    [Input('section', 'value')],
-)
-def task_div(section):
-    if section == "Blackjack":
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
+    elif section in ["Car Rental"]:
+        return [display[0]]*9 + [display[0]] * 7
+
+    elif section in ["Cliff Walking"]:
+        return [display[0]] + [display[0]]*15
 
 
 # @app.callback(
@@ -556,143 +575,11 @@ def exploration_div(section, control):
 
 
 @app.callback(
-    Output('comparison_div', 'style'),
-    [Input('section', 'value')],
-)
-def comparison_div(section):
-    if section in ["Random Walk"]:
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
-
-
-@app.callback(
-    Output('n_iter_div', 'style'),
-    [Input('section', 'value')],
-)
-def n_iter_div(section):
-    if section in ["Blackjack", "Tic Tac Toe"]:
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
-
-
-@app.callback(
-    Output('goal_div', 'style'),
-    [Input('section', 'value')],
-)
-def goal_div(section):
-    if section == "Gambler's Ruin":
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
-
-
-@app.callback(
-    Output('prob_heads_div', 'style'),
-    [Input('section', 'value')],
-)
-def prob_heads_div(section):
-    if section == "Gambler's Ruin":
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
-
-
-@app.callback(
     Output('in_place_div', 'style'),
     [Input('section', 'value')],
 )
 def in_place_div(section):
     if section in ['Grid World', 'Car Rental', "Gambler's Ruin", 'Mario VS Bowser']:
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
-
-
-@app.callback(
-    Output('grid_size_div', 'style'),
-    [Input('section', 'value')],
-)
-def grid_size_div(section):
-    if section in ['Grid World']:
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
-
-
-@app.callback(
-    Output('gamma_div', 'style'),
-    [Input('section', 'value')],
-)
-def gamma_div(section):
-    if section in ['Grid World', 'Car Rental']:
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
-
-
-@app.callback(
-    Output('max_cars_div', 'style'),
-    [Input('section', 'value')],
-)
-def max_cars_div(section):
-    if section in ['Car Rental']:
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
-
-
-@app.callback(
-    Output('max_move_cars_div', 'style'),
-    [Input('section', 'value')],
-)
-def max_move_cars_div(section):
-    if section in ['Car Rental']:
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
-
-
-@app.callback(
-    Output('rental_rate_div', 'style'),
-    [Input('section', 'value')],
-)
-def rental_rate_div(section):
-    if section in ['Car Rental']:
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
-
-
-@app.callback(
-    Output('return_rate_div', 'style'),
-    [Input('section', 'value')],
-)
-def return_rate_div(section):
-    if section in ['Car Rental']:
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
-
-
-@app.callback(
-    Output('rental_credit_div', 'style'),
-    [Input('section', 'value')],
-)
-def rental_credit_div(section):
-    if section in ['Car Rental']:
-        return {'display': 'block'}
-    else:
-        return {'display': 'none'}
-
-
-@app.callback(
-    Output('move_car_cost_div', 'style'),
-    [Input('section', 'value')],
-)
-def move_car_cost_div(section):
-    if section in ['Car Rental']:
         return {'display': 'block'}
     else:
         return {'display': 'none'}
@@ -787,9 +674,9 @@ def RL(clicks, button_state, section,
           )
 
     if not clicks:
-        return
+        raise PreventUpdate
     if button_state == 'Stop':
-        return
+        raise PreventUpdate
 
     if section == 'Grid World':
 
