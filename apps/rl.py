@@ -2,6 +2,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
+from textwrap import dedent
 
 from style import *
 from app import app
@@ -143,6 +144,15 @@ layout = html.Div([
                         ],
                         className='one column',
                     ),
+                    # html.Div(
+                    #     id='description',
+                    #     children=[
+                    #         dcc.Markdown(
+                    #         ),
+                    #     ],
+                    #     className=f'row',
+                    #     style={"text-align: right"}
+                    # ),
                 ],
                 style={
                     # 'backgroundColor': DECREASING_COLOR,
@@ -618,6 +628,17 @@ def disable_enable_button(clicked, state):
     elif state == 'Stop':
         return 'Run experiment'
 
+# @app.callback(
+#     Output('description', 'value'),
+#     [Input('section', 'value')]
+# )
+# def description(section):
+#     if section in ['Random Walk']:
+#         rw = RandomWalk()
+#         return dedent(rw.description())
+#     else:
+#         return
+
 
 @app.callback(
     Output('rl-display-results', 'children'),
@@ -958,7 +979,7 @@ def RL(clicks, button_state, section,
 
             length = walk_length
             episodes = 10
-            sims = 100
+            sims = 1
 
             rw = RandomWalk(length)
 
@@ -977,8 +998,15 @@ def RL(clicks, button_state, section,
                     errors[n_step][i] = rmse
 
             fig3 = rw.plot_rmse(errors, alphas)
+            description = rw.description()
 
             return [
+                html.Div(
+                    # id='description',
+                    dcc.Markdown(children=[description]),
+                    className=f'row',
+                    style={"text-align: right"}
+                ),
                 html.Div(
                     dcc.Graph(
                         id='values',
