@@ -82,12 +82,12 @@ layout = html.Div([
                                                                         style=tab_style,
                                                                         selected_style=selected_style
                                                                 ),
-                                                                dcc.Tab(
-                                                                        label='Tic Tac Toe',
-                                                                        value='Tic Tac Toe',
-                                                                        style=tab_style,
-                                                                        selected_style=selected_style
-                                                                ),
+                                                                # dcc.Tab(
+                                                                #         label='Tic Tac Toe',
+                                                                #         value='Tic Tac Toe',
+                                                                #         style=tab_style,
+                                                                #         selected_style=selected_style
+                                                                # ),
                                                                 dcc.Tab(
                                                                         label='Random Walk',
                                                                         value='Random Walk',
@@ -405,7 +405,7 @@ layout = html.Div([
                                     className='two columns',
                             ),
                             html.Div(
-                                    id='features_div',
+                                    id='feature_div',
                                     children=[
                                         html.Label('Features', style={'textAlign': 'center'}),
                                         dcc.Dropdown(
@@ -488,7 +488,7 @@ from collections import OrderedDict
 
 display = ({'display': 'none'}, {'display': 'block'})
 output_ids = sorted([
-    'behavior_div', 'comparison_div', 'walk_length_div', 'features_div', 'exploration_div', 'simulation_div', 'task_div',
+    'behavior_div', 'comparison_div', 'walk_length_div', 'feature_div', 'exploration_div', 'simulation_div', 'task_div',
     'policy_div', 'n_iter_div', 'prob_heads_div', 'goal_div', 'grid_size_div', 'gamma_div', 'max_cars_div',
     'max_move_cars_div', 'rental_rate_div', 'rental_credit_div', 'move_car_cost_div',
 
@@ -503,6 +503,8 @@ outputs_components = [Output(output_id, 'style') for output_id in output_ids]
         [
             Input('section', 'value'),
             Input('task', 'value'),
+            Input('off_policy', 'value'),
+
         ],
         [
             # Shared across DP
@@ -521,7 +523,6 @@ outputs_components = [Output(output_id, 'style') for output_id in output_ids]
             # Blackjack
             State('exploration', 'value'),
             State('n_iter', 'value'),
-            State('off_policy', 'value'),
             State('behavior', 'value'),
 
             # Windy Gridworld
@@ -532,33 +533,33 @@ outputs_components = [Output(output_id, 'style') for output_id in output_ids]
             State('walk_length', 'value')
         ]
 )
-def show_hide(section, task,
+def show_hide(section, task, off_policy,
               in_place,
               grid_size, gamma,
               prob_heads, goal,
               exploration, n_iter,
-              off_policy, behavior,
+              behavior,
               feature,
               comparison, walk_length):
 
     print(section)
     show = set()
     if section in ["Random Walk"]:
-        show = {'comparison', 'walk_length'}
+        show = {'comparison', 'walk_length', 'n_iter', 'simulation'}
 
     elif section in ["Windy Gridworld"]:
         show = {'feature'}
 
     elif section in ['Blackjack']:
         show = {'task', 'n_iter', 'policy'}
-
         if task == 'Evaluation':
-            pass
+            if off_policy == 'True':
+                show |= {'behavior', 'simulation'}
         elif task == 'Control':
-            show |= {'exploration', 'simulation'}
-
-        if off_policy == 'True':
-            show |= {'behavior', 'simulation'}
+            if off_policy == 'True':
+                show |= {'behavior'}
+            else:
+                show |= {'exploration'}
 
     elif section in ['Tic Tac Toe']:
         show = {'n_iter'}
@@ -573,7 +574,7 @@ def show_hide(section, task,
         pass
 
     elif section in ["Cliff Walking"]:
-        show = {}
+        show = {'simulation', 'n_iter'}
 
     show = {f'{component}_div' for component in show}
 
@@ -594,8 +595,64 @@ def in_place_div(section):
     else:
         return {'display': 'none'}
 
-
 #####################################################
+# DEFAULT VALUES
+# TODO: refactor as in show/hide
+
+
+@app.callback(
+        Output('n_iter', 'value'),
+        [
+            Input('task', 'value'),
+            Input('off_policy', 'value'),
+            Input('comparison', 'value'),
+        ],
+        [
+            State('section', 'value')
+        ]
+)
+def n_iter(task, off_policy, comparison, section):
+    if section == 'Blackjack':
+        if task == 'Evaluation':
+            if off_policy == 'True':
+                return 1000
+    elif section == 'Random Walk':
+        if comparison == 'TD vs MC':
+            return 100
+        elif comparison == 'n-steps':
+            return 10
+    elif section == 'Cliff Walking':
+        return 500
+
+    return 10000
+
+
+@app.callback(
+        Output('simulation', 'value'),
+        [
+            Input('task', 'value'),
+            Input('off_policy', 'value'),
+            Input('comparison', 'value'),
+        ],
+        [
+            State('section', 'value')
+        ]
+)
+def simulation(task, off_policy, comparison, section):
+    if section == 'Blackjack':
+        if task == 'Evaluation':
+            if off_policy == 'True':
+                return 1000
+    elif section == 'Random Walk':
+        if comparison == 'TD vs MC':
+            return 100
+        elif comparison == 'n-steps':
+            return 100
+    elif section == 'Cliff Walking':
+        return 100
+
+    return 100
+
 
 @app.callback(
         Output('walk_length', 'value'),
@@ -614,6 +671,8 @@ def gamma_value(section):
         return 0.9
     else:
         return 1
+
+#####################################################
 
 
 @app.callback(
@@ -766,36 +825,35 @@ def RL(clicks, button_state, section,
         if task == 'Evaluation':
 
             if off_policy == 'False':
+                # TODO: add online plotting of the value function
+
                 description = """
                 In the **On-Policy** Evaluation **Task** (Example 5.1) we consider the policy that sticks if the player’s sum is 20 or 21, and otherwise hits.
                 To find the state-value function for this policy by a Monte Carlo approach, one simulates many blackjack games using the policy and averages the returns following each state. 
                 In this way, we obtained the estimates of the state-value function shown in the graph. 
                 The estimates for states with a usable ace are less certain and less regular because these states are less common. 
-                Try various values for number of episodes.
-                In any event, after 500,000 games the value function is very well approximated.
+                Try various values for number of episodes to observe the convergence for yourself.
                 """
                 return [
                     html.Div(
-                            dcc.Markdown(
-                                    id='graph-description',
-                                    children=dcc.Markdown(dedent(description))
-                            ),
+                            id='graph-description',
+                            children=dcc.Markdown(dedent(description)),
                             className='six columns'
                     ),
                     html.Div(
                             dcc.Graph(
                                     id='value_estimate',
-                                    figure=bj.plot_value_function(bj.mc_prediction(10000), 10000)
+                                    figure=bj.plot_value_function(bj.mc_prediction(n_iter), n_iter)
                             ),
                             className=f'six columns',
                     ),
-                    html.Div(
-                            dcc.Graph(
-                                    id='better_value_estimate',
-                                    figure=bj.plot_value_function(bj.mc_prediction(500000), 500000)
-                            ),
-                            className=f'six columns',
-                    )
+                    # html.Div(
+                    #         dcc.Graph(
+                    #                 id='better_value_estimate',
+                    #                 figure=bj.plot_value_function(bj.mc_prediction(500000), 500000)
+                    #         ),
+                    #         className=f'six columns',
+                    # )
                 ]
 
             else:
@@ -808,7 +866,6 @@ def RL(clicks, button_state, section,
                     weighted_msr += np.power(weighted_value - true_value, 2)
                 ordinary_msr /= simulations
                 weighted_msr /= simulations
-                print(ordinary_msr)
 
                 description = """
                 In contrast, in the **Off-Policy** Evaluation **Task** (Example 5.4) we apply both ordinary and weighted importance-sampling methods to estimate the value of a single blackjack state from on-policy data. 
@@ -825,13 +882,10 @@ def RL(clicks, button_state, section,
                 The error approaches zero for both algorithms, but the weighted importance-sampling method has much lower error at the beginning, as is typical in practice.
                 """
                 fig = bj.plot_learning_curves(ordinary_msr, weighted_msr)
-                print(fig)
                 return [
                     html.Div(
-                            dcc.Markdown(
-                                    id='graph-description',
-                                    children=dcc.Markdown(dedent(description))
-                            ),
+                            id='graph-description',
+                            children=dcc.Markdown(dedent(description)),
                             className='six columns'
                     ),
                     html.Div(
@@ -843,6 +897,7 @@ def RL(clicks, button_state, section,
                     )
                 ]
 
+            # TODO: add param to choose this incremental evaluation
             # else:
             #     q = bj.monte_carlo_off_policy_evalualtion(n_iter)
             #     sv = np.max(q, axis=0)
@@ -857,23 +912,40 @@ def RL(clicks, button_state, section,
             #     ]
 
         elif task == 'Control':
+
             if off_policy == 'True':
+                description = """
+                The following graph shows an off-policy Monte Carlo control method, based on GPI and weighted importance sampling, for estimating Pi* and q*. 
+                The target policy Pi~Pi* is the greedy policy with respect to Q, which is an estimate of q*. 
+                The behavior policy b can be anything, but in order to assure convergence of Pi to the optimal policy, 
+                an infinite number of returns must be obtained for each pair of state and action. 
+                This can be assured by choosing b to be epsilon-soft. 
+                The policy Pi converges to optimal at all encountered states even though actions are selected according to a di↵erent soft policy b, 
+                which may change between or even within episodes.
+                """
+                # TODO: apply this algorithm to racetrack problem instead
+
                 q, policy = bj.monte_carlo_off_policy_control(n_iter)
                 sv = np.max(q, axis=0)
                 return [
+                    html.Div(
+                            id='graph-description',
+                            children=dcc.Markdown(dedent(description)),
+                            className='six columns'
+                    ),
                     html.Div(
                             dcc.Graph(
                                     id='optimal_value_function',
                                     figure=bj.plot_value_function(sv)
                             ),
-                            className=f'six columns',
+                            className=f'three columns',
                     ),
                     html.Div(
                             dcc.Graph(
                                     id='optimal_policy',
                                     figure=bj.plot_policy(policy)
                             ),
-                            className=f'six columns',
+                            className=f'three columns',
                     ),
                 ]
 
@@ -885,7 +957,28 @@ def RL(clicks, button_state, section,
                     av, policy, n_visits = bj.monte_carlo_epsilon_greedy(n_iter)
                 sv = np.max(av, axis=0)
 
+                description = """
+                It is straightforward to apply Monte Carlo ES to blackjack. 
+                Because the episodes are all simulated games, it is easy to arrange for exploring starts that include all possibilities. 
+                In this case one simply picks the dealer’s cards, the player’s sum, and whether or not the player has a usable ace, all at random with equal probability. 
+                As the initial policy we use the policy evaluated in the previous blackjack example, that which sticks only on 20 or 21. 
+                The initial action-value function can be zero for all state–action pairs. Figure 5.2 shows the optimal policy for blackjack found by Monte Carlo ES. 
+                This policy is the same as the “basic” strategy of Thorp (1966) with the sole exception of the leftmost notch in the policy for a usable ace, which is not present in Thorp’s strategy. 
+                We are uncertain of the reason for this discrepancy, but confident that what is shown here is indeed the optimal policy for the version of blackjack we have described.
+                
+                Without the assumption of exploring starts, however, we cannot simply improve the policy by making it greedy with respect to the current value function, 
+                because that would prevent further exploration of nongreedy actions. 
+                Fortunately, GPI does not require that the policy be taken all the way to a greedy policy, 
+                only that it be moved toward a greedy policy. 
+                In our on-policy method we will move it only to an epsilon-greedy policy.
+                
+                """
                 return [
+                    html.Div(
+                            id='graph-description',
+                            children=dcc.Markdown(dedent(description)),
+                            className='six columns'
+                    ),
                     html.Div(
                             dcc.Graph(
                                     id='optimal_value_function',
@@ -939,8 +1032,7 @@ def RL(clicks, button_state, section,
         if comparison == 'TD vs MC':
 
             length = walk_length
-            n_iter = 100
-            sims = 100
+            sims = simulations
 
             rw = RandomWalk(length)
             mc_values = ray.get(rw.mc_prediction.remote(rw, n_iter))
@@ -1023,8 +1115,8 @@ def RL(clicks, button_state, section,
             """
 
             length = walk_length
-            episodes = 10
-            sims = 1
+            episodes = n_iter
+            sims = simulations
 
             rw = RandomWalk(length)
 
@@ -1096,14 +1188,11 @@ def RL(clicks, button_state, section,
         cliff_rewards = {(i, -1): -100 for i in range(1, 11)}
         cw = CliffWalking(width=12, height=4, other_rewards=cliff_rewards)
 
-        simulations = 100
-        n_episodes = 500
-
-        algos = ['n_step_sarsa', 'sarsa', 'q_learning', 'expected_sarsa', 'double_q_learning']
-        rewards = dict(zip(algos, [np.zeros((simulations, n_episodes)) for _ in range(len(algos))]))
+        algos = ['n_step_sarsa', 'sarsa', 'q_learning', 'expected_sarsa', 'double_q_learning', 'n_step_sarsa_off_policy']
+        rewards = dict(zip(algos, [np.zeros((simulations, n_iter)) for _ in range(len(algos))]))
 
         for algo in tqdm(algos):
-            res = [getattr(cw, algo).remote(cw, n_episodes=n_episodes, verbose=False) for _ in range(simulations)]
+            res = [getattr(cw, algo).remote(cw, n_episodes=n_iter, verbose=False) for _ in range(simulations)]
             for i, sim in enumerate(ray.get(res)):
                 rewards[algo][i] = sim
 

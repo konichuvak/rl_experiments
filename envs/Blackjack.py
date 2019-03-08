@@ -17,8 +17,8 @@ class Blackjack:
         self.cards = np.concatenate((np.arange(1, 11), np.repeat(10, 3)))  # 2-10, J=10, Q=10, K=10, A=1
 
         self.offset = 12  # index 0 of a matrix would indicate value of a player summing upto 12
-        # self.target_policy = np.array([np.vstack((np.ones((8, 10)), np.zeros((2, 10))))] * 2, dtype=np.int64)
-        self.behaviour_policy = np.array([np.vstack((np.ones((8, 10)), np.zeros((2, 10))))] * 2, dtype=np.int64)
+        self.target_policy = np.array([np.vstack((np.ones((8, 10)), np.zeros((2, 10))))] * 2, dtype=np.int64)
+        self.behaviour_policy = lambda state: self.target_policy[state]
         self.dealer_policy = np.concatenate((np.ones(5, dtype=np.int64), np.zeros(5, dtype=np.int64)))
 
     def get_card(self):
@@ -194,7 +194,6 @@ class Blackjack:
         q_values = np.zeros((2, 2, 10, 10))  # (useable ace, action_taken, player's 12-21, dealer's ace-10, )
         n_visits = q_values.copy()
         self.target_policy = np.zeros((2, 10, 10))
-        self.behaviour_policy = self.target_policy
 
         # i = dict(zip(range(1, 11), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
         # j = dict(zip(range(1, 11), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
@@ -257,8 +256,7 @@ class Blackjack:
         q_values = np.zeros((2, 2, 10, 10))
         n_visits = q_values.copy()
         self.target_policy = np.zeros((2, 10, 10))
-        self.behaviour_policy = lambda state: random.randint(0, 1) if random.random() < epsilon else self.target_policy[
-            state]
+        self.behaviour_policy = lambda state: random.randint(0, 1) if random.random() < epsilon else self.target_policy[state]
 
         for k in tqdm(range(1, n_episodes + 1)):
             with NoPrint():
@@ -577,8 +575,7 @@ class Blackjack:
                 autorange=True
             ),
             yaxis=dict(
-                title='Mean square error (average over 100 runs)',
-                # type='log',
+                title='Mean square error (average over simulations)',
                 autorange=True
             )
         )
@@ -612,10 +609,6 @@ class Blackjack:
         Thus, the player makes decisions on the basis of three variables: his current sum (12–21), the dealer’s one showing card (ace–10), and whether or not he holds a usable ace. 
         This makes for a total of 200 states. 
         
-
-        
-        
-
         ---
 
         """
@@ -623,10 +616,6 @@ class Blackjack:
         return description
 
 
-
-    """
-    
-"""
 if __name__ == "__main__":
     bj = Blackjack()
     # sv = bj.mc_prediction(1000)
