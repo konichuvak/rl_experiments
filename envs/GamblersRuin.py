@@ -86,17 +86,17 @@ class GamblersRuin:
             if i + 1 not in iters:
                 continue
             traces.append(
-                go.Scatter(
-                    mode='lines',
-                    y=sv,
-                    name=f'sweep {i + 1}'
-                )
+                    go.Scatter(
+                            mode='lines',
+                            y=sv,
+                            name=f'sweep {i + 1}'
+                    )
             )
 
         layout = dict(
-            height=600,
-            title='Value Iterations',
-            showlegend=True
+                height=600,
+                title='Value Iterations',
+                showlegend=True
         )
         return {'data': traces, 'layout': layout}
 
@@ -104,13 +104,41 @@ class GamblersRuin:
     def plot_optimal_policy(policy):
         traces = [
             go.Scatter(
-                mode='lines',
-                y=policy,
-                showlegend=False
+                    mode='lines',
+                    y=policy,
+                    showlegend=False
             )
         ]
         layout = dict(
-            height=600,
-            title='Optimal Policy'
+                height=600,
+                title='Optimal Policy'
         )
         return {'data': traces, 'layout': layout}
+
+    @staticmethod
+    def description():
+        description = """ 
+        ### Gambler's Problem as described in Example 4.3 of the text
+
+        ---
+        A gambler has the opportunity to make bets on the outcomes of a sequence of coin flips. 
+        If the coin comes up heads, he wins as many dollars as he has staked on that flip; if it is tails, he loses his stake. 
+        The game ends when the gambler wins by reaching his **Goal**, or loses by running out of money. 
+        On each flip, the gambler must decide what portion of his capital to stake, in integer numbers of dollars. 
+        This problem can be formulated as an undiscounted, episodic, finite MDP. 
+        The state is the gambler’s capital and the actions are stakes. 
+        The reward is zero on all transitions except those on which the gambler reaches his goal, when it is +1. 
+        The state-value function then gives the probability of winning from each state. 
+        A policy is a mapping from levels of capital to stakes. 
+        The optimal policy maximizes the probability of reaching the goal. 
+        If **Probabiliy of heads** is known, then the entire problem is known and it can be solved, for instance, by value iteration. 
+        The graph below shows the change in the value function over successive sweeps of value iteration, and the final policy found. 
+        This policy is optimal, but not unique. 
+        In fact, there is a whole family of optimal policies, all corresponding to ties for the argmax action selection with respect to the optimal value function. 
+        Can you guess what the entire family looks like?
+
+        ---
+
+        """
+
+        return description

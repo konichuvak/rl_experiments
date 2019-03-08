@@ -18,7 +18,7 @@ class Blackjack:
 
         self.offset = 12  # index 0 of a matrix would indicate value of a player summing upto 12
         # self.target_policy = np.array([np.vstack((np.ones((8, 10)), np.zeros((2, 10))))] * 2, dtype=np.int64)
-        # self.behaviour_policy = np.array([np.vstack((np.ones((8, 10)), np.zeros((2, 10))))] * 2, dtype=np.int64)
+        self.behaviour_policy = np.array([np.vstack((np.ones((8, 10)), np.zeros((2, 10))))] * 2, dtype=np.int64)
         self.dealer_policy = np.concatenate((np.ones(5, dtype=np.int64), np.zeros(5, dtype=np.int64)))
 
     def get_card(self):
@@ -584,7 +584,49 @@ class Blackjack:
         )
         return {'data': traces, 'layout': layout}
 
+    @staticmethod
+    def description():
+        description = """ 
+        ### Blackjack as described in Examples 5.1, 5.3, 5.4 of the text
 
+        ---
+        
+        The object of the popular casino card game of blackjack is to obtain cards the sum of whose numerical values is as great as possible without exceeding 21. 
+        All face cards count as 10, and an ace can count either as 1 or as 11. 
+        We consider the version in which each player competes independently against the dealer. 
+        The game begins with two cards dealt to both dealer and player. 
+        One of the dealer’s cards is face up and the other is face down. 
+        If the player has 21 immediately (an ace and a 10-card), it is called a natural. He then wins unless the dealer also has a natural, in which case the game is a draw. 
+        If the player does not have a natural, then he can request additional cards, one by one (hits), until he either stops (sticks) or exceeds 21 (goes bust). 
+        If he goes bust, he loses; if he sticks, then it becomes the dealer’s turn.
+        The dealer hits or sticks according to a fixed strategy without choice: he sticks on any sum of 17 or greater, and hits otherwise. 
+        If the dealer goes bust, then the player wins; otherwise, the outcome -- win, lose, draw -- is determined by whose final sum is closer to 21.
+        
+        Playing blackjack is naturally formulated as an episodic finite MDP. Each game of blackjack is an episode. 
+        Rewards of +1,  1, and 0 are given for winning, losing, and drawing, respectively. 
+        All rewards within a game are zero, and we do not discount; therefore these terminal rewards are also the returns. 
+        The player’s actions are to hit or to stick. The states depend on the player’s cards and the dealer’s showing card. 
+        We assume that cards are dealt from an infinite deck (i.e., with replacement) so that there is no advantage to keeping track of the cards already dealt. 
+        If the player holds an ace that he could count as 11 without going bust, then the ace is said to be usable. 
+        In this case it is always counted as 11 because counting it as 1 would make the sum 11 or less, in which case there is no decision to be made because, obviously, the player should always hit. 
+        Thus, the player makes decisions on the basis of three variables: his current sum (12–21), the dealer’s one showing card (ace–10), and whether or not he holds a usable ace. 
+        This makes for a total of 200 states. 
+        
+
+        
+        
+
+        ---
+
+        """
+
+        return description
+
+
+
+    """
+    
+"""
 if __name__ == "__main__":
     bj = Blackjack()
     # sv = bj.mc_prediction(1000)

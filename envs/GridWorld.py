@@ -85,3 +85,24 @@ class GridWorld:
             )
             fig.append_trace(trace, j, 1)
         return fig
+
+    @staticmethod
+    def description():
+        description = """ 
+        ### Simple GridWorld as described in Example 4.1 of the text
+        
+        ---
+        Terminal states are in the top left and bottom right corners. 
+        There are four actions possible in each state: {up, down, right, left}, which deterministically cause the corresponding state transitions, 
+        Actions that would take the agent off the grid in fact leave the state unchanged. 
+        The reward is 1 on all transitions until the terminal state is reached. 
+        In the example below, agent follows equiprobable random policy. 
+        The graph shows the sequence of value functions V_k computed by iterative policy evaluation. 
+        The final estimate is in fact v*, which in this case gives for each state the negation of the expected number of steps from that state until termination.
+        
+        ---
+        
+        """
+
+        return description
+

@@ -142,7 +142,7 @@ class RandomWalk:
             episodes.append(episode)
 
             while True:
-                increments = np.zeros(self.length+2)
+                increments = np.zeros(self.length + 2)
                 for episode in episodes:
                     if algo == 'MC':
                         episode = dict(episode[::-1])  # remove duplicates and reverse the rollout
@@ -251,26 +251,32 @@ class RandomWalk:
         )
         return {'data': traces, 'layout': layout}
 
-    def description(self):
+    @staticmethod
+    def description():
         markdown_text = """
         
-        ### Random Walk Environment as per Examples 6.2 and 7.1 by Richard Suttond & Andrew Barto
+        ### Random Walk Environment as per Examples 6.2 and 7.1 in text
+        
+        ---
         
         Experiment is formulated as a Markov Reward Process as there is no need to distinguish the dynamics due to the environment from those due to the agent.
         In this MRP, all episodes start in the center state, then proceed either left or right by one state on each step, with equal probability.         
         Because this task is undiscounted, the true value of each state is the probability of terminating on the right if starting from that state. 
+        Episodes terminate either on the extreme left or the extreme right.
         
-        In the TD(0) vs MC case we compare the performance of two classic algorithms by measuring Root Mean Squared Error 
-        between the true state values of the Random Walk and the ones estimated by the agent. 
-        Episodes terminate either on the extreme left or the extreme right. In this case we set the reward to 0 for all states except for the rightmost state.
-        State value estimates are averaged over the number of states of the process (Walk Length), then averaged over 100 experiments.
+        In the TD(0) vs MC case we compare performance of two classic algorithms by measuring Root Mean Squared Error 
+        between the true state values of the random walk and the ones estimated by the agent. 
+        In this case we set the reward to 0 for all states except for the rightmost state.
+        State value estimates are averaged over the number of states of the process (*Walk Length*), then averaged over the number of experiments.
         
-        We then generalize these two algorithms via n-step TD method. The traces  show the results of a empirical test for a larger random walk process. 
+        We then generalize these two algorithms via n-step TD method. 
         This time, the rewards are -1 on the left and 1 on the right with. All states are initialized with value 0.
         Results are shown for n-step TD methods with a range of values for n and step-size alpha. 
-        The performance measure was kept the same except averaging occurs across over first 10 episodes of the run in this case.        
+        The performance measure was kept the same except averaging occurs across over first 10 episodes of the run in addition to averaging over states and experiments.   
+        
+        ---
+           
         """
-
         return markdown_text
 
 

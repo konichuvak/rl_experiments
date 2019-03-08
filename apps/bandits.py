@@ -2,7 +2,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from envs.Bandits import Bandits
-from style import *
+from assets.style import *
 import numpy as np
 from tqdm import tqdm
 import ray
@@ -165,7 +165,7 @@ layout = html.Div([
                         children=[
                             html.Label('Simulations:', style={'textAlign': 'center'}),
                             dcc.Dropdown(
-                                id='simulation',
+                                id='simulations',
                                 options=[{'label': s, 'value': s} for s in simulations],
                                 value=simulations[1]
                             )
@@ -419,7 +419,7 @@ def weighting_value(section):
         State('section', 'value'),
 
         # Bandits
-        State('simulation', 'value'),
+        State('simulations', 'value'),
         State('steps', 'value'),
         State('bandits', 'value'),
         State('epsilon', 'value'),
