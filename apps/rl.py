@@ -1247,4 +1247,21 @@ def RL(clicks, button_state, section,
             # ),
         ]
 
+    elif section == 'Dyna Maze':
+        dm = DynaMaze(width=9, height=6, default_reward=0, other_rewards={(8, 0): 1})
 
+        episode_length = dict()
+        for i, n in tqdm(enumerate((0, 5, 50))):
+            episodes = ray.get([dm.q_planning.remote(dm, planning_steps=n, n_episodes=n_iter, seed=n, ) for _ in range(simulations)])
+            episode_length[n] = np.mean(np.asarray(episodes), axis=0)
+
+        fig = dm.plot_learning_curves(episode_length)
+        return [
+            html.Div(
+                    dcc.Graph(
+                            id='steps_per_episode',
+                            figure=fig,
+                            className='six columns'
+                    ),
+            ),
+        ]
