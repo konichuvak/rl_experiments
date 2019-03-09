@@ -2,11 +2,11 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
-from textwrap import dedent
-import importlib
 
-from assets.style import *
 from app import app
+
+from textwrap import dedent
+from assets.style import *
 
 from envs.GridWorld import GridWorld
 # from CarRental import CarRental
@@ -17,7 +17,10 @@ from envs.TicTacToe import TicTacToe
 from envs.RandomWalk import RandomWalk
 from envs.WindyGridworld import WindyGridworld
 from envs.CliffWalking import CliffWalking
+from envs.DynaMaze import DynaMaze
 
+import importlib
+from collections import OrderedDict
 import numpy as np
 from tqdm import tqdm
 import ray
@@ -103,6 +106,12 @@ layout = html.Div([
                                                                 dcc.Tab(
                                                                         label='Cliff Walking',
                                                                         value='Cliff Walking',
+                                                                        style=tab_style,
+                                                                        selected_style=selected_style
+                                                                ),
+                                                                dcc.Tab(
+                                                                        label='Dyna Maze',
+                                                                        value='Dyna Maze',
                                                                         style=tab_style,
                                                                         selected_style=selected_style
                                                                 ),
@@ -484,7 +493,6 @@ layout = html.Div([
     )
 ])
 
-from collections import OrderedDict
 
 display = ({'display': 'none'}, {'display': 'block'})
 output_ids = sorted([
@@ -494,7 +502,6 @@ output_ids = sorted([
 
 ])
 active_outputs = OrderedDict(zip(output_ids, (display[0] for _ in range(len(output_ids)))))
-
 outputs_components = [Output(output_id, 'style') for output_id in output_ids]
 
 
@@ -561,19 +568,22 @@ def show_hide(section, task, off_policy,
             else:
                 show |= {'exploration'}
 
-    elif section in ['Tic Tac Toe']:
+    elif section in {'Tic Tac Toe'}:
         show = {'n_iter'}
 
-    elif section in ["Gambler's Ruin"]:
+    elif section in {"Gambler's Ruin"}:
         show = {'prob_heads', 'goal'}
 
-    elif section in ["Grid World"]:
+    elif section in {"Grid World"}:
         show = {'grid_size', 'gamma'}
 
-    elif section in ["Car Rental"]:
+    elif section in {"Car Rental"}:
         pass
 
-    elif section in ["Cliff Walking"]:
+    elif section in {"Cliff Walking"}:
+        show = {'simulation', 'n_iter'}
+
+    elif section in {"Dyna Maze"}:
         show = {'simulation', 'n_iter'}
 
     show = {f'{component}_div' for component in show}
@@ -606,10 +616,8 @@ def in_place_div(section):
             Input('task', 'value'),
             Input('off_policy', 'value'),
             Input('comparison', 'value'),
+            Input('section', 'value')
         ],
-        [
-            State('section', 'value')
-        ]
 )
 def n_iter(task, off_policy, comparison, section):
     if section == 'Blackjack':
@@ -623,6 +631,8 @@ def n_iter(task, off_policy, comparison, section):
             return 10
     elif section == 'Cliff Walking':
         return 500
+    elif section == 'Dyna Maze':
+        return 50
 
     return 10000
 
@@ -633,12 +643,12 @@ def n_iter(task, off_policy, comparison, section):
             Input('task', 'value'),
             Input('off_policy', 'value'),
             Input('comparison', 'value'),
+            Input('section', 'value')
         ],
-        [
-            State('section', 'value')
-        ]
 )
 def simulation(task, off_policy, comparison, section):
+    print('sim')
+    print(section)
     if section == 'Blackjack':
         if task == 'Evaluation':
             if off_policy == 'True':
@@ -650,6 +660,8 @@ def simulation(task, off_policy, comparison, section):
             return 100
     elif section == 'Cliff Walking':
         return 100
+    elif section == 'Dyna Maze':
+        return 30
 
     return 100
 
@@ -1188,7 +1200,7 @@ def RL(clicks, button_state, section,
         cliff_rewards = {(i, -1): -100 for i in range(1, 11)}
         cw = CliffWalking(width=12, height=4, other_rewards=cliff_rewards)
 
-        algos = ['n_step_sarsa', 'sarsa', 'q_learning', 'expected_sarsa', 'double_q_learning', 'n_step_sarsa_off_policy']
+        algos = ['sarsa', 'q_learning', 'expected_sarsa', 'double_q_learning', 'n_step_sarsa', 'n_step_sarsa_off_policy'] #  'n_step_q_sigma', 'n_step_tree_backup'
         rewards = dict(zip(algos, [np.zeros((simulations, n_iter)) for _ in range(len(algos))]))
 
         for algo in tqdm(algos):
@@ -1234,3 +1246,5 @@ def RL(clicks, button_state, section,
             #
             # ),
         ]
+
+
