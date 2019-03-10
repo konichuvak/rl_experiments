@@ -19,6 +19,7 @@ from envs.WindyGridworld import WindyGridworld
 from envs.CliffWalking import CliffWalking
 from envs.DynaMaze import DynaMaze
 
+import random
 import importlib
 from collections import OrderedDict
 import numpy as np
@@ -328,22 +329,6 @@ layout = html.Div([
                             ),
                             ####################################################################################
                             html.Div(
-                                    id='simulation_div',
-                                    children=[
-                                        html.Label('Simulations:', style={'textAlign': 'center'}),
-                                        dcc.Input(
-                                                id='simulation',
-                                                type='number',
-                                                step=10,
-                                                placeholder='100',
-                                                value=100
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='one column',
-                            ),
-
-                            html.Div(
                                     id='task_div',
                                     children=[
                                         html.Label('Task:', style={'textAlign': 'center'}),
@@ -443,7 +428,6 @@ layout = html.Div([
                                     style={'display': 'none'},
                                     className='one columns',
                             ),
-
                             html.Div(
                                     id='comparison_div',
                                     children=[
@@ -457,6 +441,113 @@ layout = html.Div([
                                     ],
                                     style={'display': 'none'},
                                     className='two columns',
+                            ),
+                            html.Div(
+                                id='maze_type_div',
+                                children=[
+                                    html.Label('Maze type', style={'textAlign': 'center'}),
+                                    dcc.Dropdown(
+                                        id='maze_type',
+                                        options=[{'label': s, 'value': s} for s in
+                                                 ['Dyna Maze', 'Blocking Maze', 'Shortcut Maze', 'Prioritized Sweeping']],
+                                        value='Dyna Maze'
+                                    )
+                                ],
+                                style={'display': 'none'},
+                                className='two columns',
+                            ),
+                            html.Div(
+                                id='planning_steps_div',
+                                children=[
+                                    html.Label('Planning Steps', style={'textAlign': 'center'}),
+                                    dcc.Dropdown(
+                                        id='planning_steps',
+                                        options=[{'label': s, 'value': s} for s in [0, 10, 50]],
+                                        value=10
+                                    )
+                                ],
+                                style={'display': 'none'},
+                                className='one column',
+                            ),
+                            html.Div(
+                                id='switch_time_div',
+                                children=[
+                                    html.Label('Maze Switching Time-step', style={'textAlign': 'center'}),
+                                    dcc.Input(
+                                        id='switch_time',
+                                        placeholder='1000',
+                                        type='number',
+                                        step=100,
+                                        value=1000,
+                                        style={'width': '100%', 'textAlign': 'center'}
+                                    )
+                                ],
+                                style={'display': 'none'},
+                                className='one column',
+                            ),
+                            html.Div(
+                                id='step_limit_div',
+                                children=[
+                                    html.Label('Last Time-step', style={'textAlign': 'center'}),
+                                    dcc.Input(
+                                        id='step_limit',
+                                        placeholder='3000',
+                                        type='number',
+                                        step=100,
+                                        value=3000,
+                                        style={'width': '100%', 'textAlign': 'center'}
+                                    )
+                                ],
+                                style={'display': 'none'},
+                                className='one column',
+                            ),
+                            html.Div(
+                                id='step_size_div',
+                                children=[
+                                    html.Label('Step Size (alpha)', style={'textAlign': 'center'}),
+                                    dcc.Input(
+                                        id='step_size',
+                                        placeholder='1',
+                                        type='number',
+                                        step=0.1,
+                                        value=1,
+                                        style={'width': '100%', 'textAlign': 'center'}
+                                    )
+                                ],
+                                style={'display': 'none'},
+                                className='one column',
+                            ),
+                            html.Div(
+                                id='time_weight_div',
+                                children=[
+                                    html.Label('Time Weight (kappa)', style={'textAlign': 'center'}),
+                                    dcc.Input(
+                                        id='time_weight',
+                                        placeholder='0.0001',
+                                        type='number',
+                                        step=0.001,
+                                        value=0.0001,
+                                        style={'width': '100%', 'textAlign': 'center'}
+                                    )
+                                ],
+                                style={'display': 'none'},
+                                className='one column',
+                            ),
+                            html.Div(
+                                id='simulation_div',
+                                children=[
+                                    html.Label('Simulations:', style={'textAlign': 'center'}),
+                                    dcc.Input(
+                                        id='simulation',
+                                        placeholder='100',
+                                        type='number',
+                                        step=10,
+                                        value=100,
+                                        style={'width': '100%', 'textAlign': 'center'}
+                                    )
+                                ],
+                                style={'display': 'none'},
+                                className='one column',
                             ),
                         ],
                         className='row'
@@ -495,12 +586,12 @@ layout = html.Div([
 
 
 display = ({'display': 'none'}, {'display': 'block'})
-output_ids = sorted([
+output_ids = sorted({
     'behavior_div', 'comparison_div', 'walk_length_div', 'feature_div', 'exploration_div', 'simulation_div', 'task_div',
-    'policy_div', 'n_iter_div', 'prob_heads_div', 'goal_div', 'grid_size_div', 'gamma_div', 'max_cars_div',
-    'max_move_cars_div', 'rental_rate_div', 'rental_credit_div', 'move_car_cost_div',
-
-])
+    'policy_div', 'n_iter_div', 'prob_heads_div', 'goal_div', 'grid_size_div', 
+    'gamma_div', 'max_cars_div','max_move_cars_div', 'rental_rate_div', 'rental_credit_div', 'move_car_cost_div',
+    'maze_type_div', 'switch_time_div', 'step_limit_div', 'step_size_div', 'time_weight_div', 'planning_steps_div'
+})
 active_outputs = OrderedDict(zip(output_ids, (display[0] for _ in range(len(output_ids)))))
 outputs_components = [Output(output_id, 'style') for output_id in output_ids]
 
@@ -511,7 +602,7 @@ outputs_components = [Output(output_id, 'style') for output_id in output_ids]
             Input('section', 'value'),
             Input('task', 'value'),
             Input('off_policy', 'value'),
-
+            Input('maze_type', 'value'),
         ],
         [
             # Shared across DP
@@ -537,17 +628,17 @@ outputs_components = [Output(output_id, 'style') for output_id in output_ids]
 
             # Random Walk
             State('comparison', 'value'),
-            State('walk_length', 'value')
+            State('walk_length', 'value'),
         ]
 )
-def show_hide(section, task, off_policy,
+def show_hide(section, task, off_policy, maze_type,
               in_place,
               grid_size, gamma,
               prob_heads, goal,
-              exploration, n_iter,
-              behavior,
+              exploration, n_iter, behavior,
               feature,
-              comparison, walk_length):
+              comparison, walk_length,
+              ):
 
     print(section)
     show = set()
@@ -584,7 +675,12 @@ def show_hide(section, task, off_policy,
         show = {'simulation', 'n_iter'}
 
     elif section in {"Dyna Maze"}:
-        show = {'simulation', 'n_iter'}
+        if maze_type == 'Dyna Maze':
+            show = {'simulation', 'n_iter', 'maze_type'}
+        elif maze_type == 'Blocking Maze':
+            show = {'simulation', 'maze_type', 'switch_time', 'step_limit', 'step_size', 'time_weight', 'planning_steps'}
+        elif maze_type == 'Shortcut Maze':
+            show = {'simulation', 'maze_type', 'switch_time', 'step_limit', 'step_size', 'time_weight', 'planning_steps'}
 
     show = {f'{component}_div' for component in show}
 
@@ -643,12 +739,11 @@ def n_iter(task, off_policy, comparison, section):
             Input('task', 'value'),
             Input('off_policy', 'value'),
             Input('comparison', 'value'),
-            Input('section', 'value')
+            Input('maze_type', 'value'),
+            Input('section', 'value'),
         ],
 )
-def simulation(task, off_policy, comparison, section):
-    print('sim')
-    print(section)
+def simulation(task, off_policy, comparison, maze_type, section):
     if section == 'Blackjack':
         if task == 'Evaluation':
             if off_policy == 'True':
@@ -661,9 +756,55 @@ def simulation(task, off_policy, comparison, section):
     elif section == 'Cliff Walking':
         return 100
     elif section == 'Dyna Maze':
-        return 30
+        if maze_type == 'Dyna Maze':
+            return 30
+        elif maze_type == 'Blocking Maze':
+            return 20
+        elif maze_type == 'Shortcut Maze':
+            return 5
 
     return 100
+
+
+@app.callback(
+        [
+            Output('switch_time', 'value'),
+            Output('step_limit', 'value'),
+        ],
+        [
+            Input('maze_type', 'value')
+        ],
+)
+def switching_maze(maze_type):
+    if maze_type == 'Blocking Maze':
+        return [1000, 3000]
+    elif maze_type == 'Shortcut Maze':
+        return [3000, 6000]
+    else:
+        return [1000, 3000]
+
+
+@app.callback(
+        Output('planning_steps', 'value'),
+        [Input('maze_type', 'value')],
+)
+def planning_steps(maze_type):
+    if maze_type == 'Blocking Maze':
+        return 10
+    elif maze_type == 'Shortcut Maze':
+        return 50
+    # elif maze_type == 'Dyna Maze':
+    #     return [0, 10, 50]
+    else:
+        return 10
+
+
+@app.callback(
+    Output('time_weight', 'value'),
+    [Input('maze_type', 'value')],
+)
+def time_weight(maze_type):
+    return 0.0001 if maze_type == 'Blocking Maze' else 0.001
 
 
 @app.callback(
@@ -750,8 +891,15 @@ def description(section):
 
             # Random Walk
             State('comparison', 'value'),
-            State('walk_length', 'value')
+            State('walk_length', 'value'),
 
+            # Maze Type
+            State('maze_type', 'value'),
+            State('step_size', 'value'),
+            State('step_limit', 'value'),
+            State('time_weight', 'value'),
+            State('switch_time', 'value'),
+            State('planning_steps', 'value'),
         ],
 )
 def RL(clicks, button_state, section,
@@ -761,13 +909,15 @@ def RL(clicks, button_state, section,
        task, exploration, n_iter,
        off_policy, behavior, simulations,
        feature,
-       comparison, walk_length
+       comparison, walk_length,
+       maze_type, step_size, step_limit, time_weight, switch_time, planning_steps,
        ):
     print(clicks, button_state, section,
           in_place,
           grid_size, gamma,
           prob_heads, goal,
-          off_policy, behavior
+          off_policy, behavior,
+          maze_type, planning_steps, step_size, step_limit, time_weight, switch_time
           )
 
     if not clicks:
@@ -1248,20 +1398,245 @@ def RL(clicks, button_state, section,
         ]
 
     elif section == 'Dyna Maze':
-        dm = DynaMaze(width=9, height=6, default_reward=0, other_rewards={(8, 0): 1})
 
-        episode_length = dict()
-        for i, n in tqdm(enumerate((0, 5, 50))):
-            episodes = ray.get([dm.q_planning.remote(dm, planning_steps=n, n_episodes=n_iter, seed=n, ) for _ in range(simulations)])
-            episode_length[n] = np.mean(np.asarray(episodes), axis=0)
+        if maze_type == 'Dyna Maze':
+            """
+            ### Dyna Maze
+            
+            The graph below shows average learning curves from an experiment in which Dyna-Q agents were applied to the maze task. 
+            The initial action values were zero, the step-size parameter was alpha = 0.1, and the exploration parameter was epsilon = 0.1. 
+            When selecting greedily among actions, ties were broken randomly. 
+            The agents varied in the number of planning steps, n, they performed per real step. 
+            For each n, the curves show the number of steps taken by the agent to reach the goal in each episode, 
+            averaged over repetitions of the experiment. 
+            In each repetition, the initial seed for the random number generator was held constant across algorithms. 
+            Because of this, the first episode was exactly the same (about 1700 steps) for all values of n, and its data are not shown in the figure. 
+            After the first episode, performance improved for all values of n, but much more rapidly for larger values. 
+            Recall that the n = 0 agent is a nonplanning agent, using only direct reinforcement learning (one-step tabular Q-learning). 
+            
+            This was by far the slowest agent on this problem, despite the fact that the parameter values (alpha and epsilon) were optimized for it. 
+            The nonplanning agent took about 25 episodes to reach (epsilon-)optimal performance, 
+            whereas the n = 5 agent took about five episodes, and the n = 50 agent took only three episodes.
+            """
+            dm = DynaMaze(width=9, height=6, default_reward=0, other_rewards={(8, 0): 1},
+                          start_state=(0, 2), goal=(8, 0))
+            dm.blocks = [(2, 1), (2, 2), (2, 3), (5, 4), (7, 1), (7, 2), (7, 3)]
 
-        fig = dm.plot_learning_curves(episode_length)
-        return [
-            html.Div(
+            episode_length = dict()
+            for i, n in tqdm(enumerate((0, 5, 50))):
+                episodes = ray.get([
+                    dm.q_planning.remote(dm, planning_steps=planning_steps, n_episodes=n_iter, seed=n,
+                ) for _ in range(simulations)])
+                episode_length[n] = np.mean(np.asarray(episodes), axis=0)
+
+            fig = dm.plot_learning_curves(episode_length)
+            return [
+                html.Div(
                     dcc.Graph(
-                            id='steps_per_episode',
-                            figure=fig,
-                            className='six columns'
+                        id='steps_per_episode',
+                        figure=fig,
+                        className='six columns'
                     ),
-            ),
-        ]
+                ),
+            ]
+
+        elif maze_type == 'Blocking Maze':
+
+            new_blocks = [(i, 3) for i in range(1, 9)]
+
+            cumulative_rewards = {'dyna_q': list(), 'dyna_q_plus': list(), 'dyna_q_plus_plus': list()}
+
+            for algo in tqdm(cumulative_rewards.keys()):
+                dyna_q_plus = algo == 'dyna_q_plus'
+                dyna_q_plus_plus = algo == 'dyna_q_plus_plus'
+
+                dm = DynaMaze(width=9, height=6, default_reward=0, other_rewards={(8, 0): 1},
+                              start_state=(3, 5), goal=(8, 0), blocks=[(i, 3) for i in range(8)])
+
+                episode_length = ray.get([dm.q_planning.remote(
+                    dm, planning_steps=planning_steps, n_episodes=100000000, step_limit=step_limit,
+                    switch_time=switch_time, new_blocks=new_blocks, alpha=step_size, seed=seed, kappa=time_weight,
+                    dyna_q_plus=dyna_q_plus, dyna_q_plus_plus=dyna_q_plus_plus
+                ) for seed in range(simulations)])
+
+                per_step_rewards = list()
+                for i in range(simulations):
+                    rewards = [0]
+                    for j in range(step_limit):
+                        if j == episode_length[i][0]:
+                            rewards.append(rewards[-1] + 1)
+                            episode_length[i][1] += episode_length[i][0]
+                            episode_length[i].pop(0)
+                        else:
+                            rewards.append(rewards[-1])
+                    per_step_rewards.append(rewards)
+
+                cumulative_rewards[algo] = np.mean(np.asarray(per_step_rewards), axis=0)
+
+            fig = dm.plot_rewards(cumulative_rewards)
+
+            description = """
+            ### Example 8.2: Blocking Maze 
+            
+            A maze example illustrating this relatively minor
+            kind of modeling error and recovery from it is shown in Figure 8.4. Initially, there is a
+            short path from start to goal, to the right of the barrier, as shown in the upper left of the
+            figure. After 1000 time steps, the short path is “blocked,” and a longer path is opened up
+            along the left-hand side of the barrier, as shown in upper right of the figure. The graph
+            shows average cumulative reward for a Dyna-Q agent and an enhanced Dyna-Q+ agent
+            to be described shortly. The first part of the graph shows that both Dyna agents found
+            the short path within 1000 steps. When the environment changed, the graphs become
+            flat, indicating a period during which the agents obtained no reward because they were
+            wandering around behind the barrier. After a while, however, they were able to find the
+            new opening and the new optimal behavior.
+            Greater difficulties arise when the environment changes to become better than it was
+            before, and yet the formerly correct policy does not reveal the improvement. In these
+            cases the modeling error may not be detected for a long time, if ever.
+            """
+            return [
+                html.Div(
+                    dcc.Graph(
+                        id='cumulative-rewards',
+                        figure=fig,
+                        className='six columns'
+                    ),
+                ),
+            ]
+
+        elif maze_type == 'Shortcut Maze':
+            """
+            ### Exercise 8.4 Shortcut Maze
+            
+            The exploration bonus described above actually changes the estimated values of states and actions. 
+            Is this necessary? Suppose the bonus k * sqrt(tau) was used not in updates, but solely in action selection. 
+            That is, suppose the action selected was always that for which Q(St, a) + k * sqrt(tau(St, a)) was maximal.
+            Carry out a gridworld experiment that tests and illustrates the strengths and weaknesses of this
+            alternate approach.
+            """
+
+            new_blocks = [(i, 3) for i in range(1, 8)]
+
+            cumulative_rewards = {'dyna_q': list(), 'dyna_q_plus': list(), 'dyna_q_plus_plus': list()}
+
+            for algo in tqdm(cumulative_rewards.keys()):
+                dyna_q_plus = algo == 'dyna_q_plus'
+                dyna_q_plus_plus = algo == 'dyna_q_plus_plus'
+
+                dm = DynaMaze(width=9, height=6, default_reward=0, other_rewards={(8, 0): 1},
+                              start_state=(3, 5), goal=(8, 0), blocks=[(i, 3) for i in range(1, 9)])
+
+                episode_length = ray.get([dm.q_planning.remote(
+                    dm, planning_steps=planning_steps, n_episodes=100000000, step_limit=step_limit,
+                    switch_time=switch_time, new_blocks=new_blocks, alpha=step_size, seed=seed, kappa=time_weight,
+                    dyna_q_plus=dyna_q_plus, dyna_q_plus_plus=dyna_q_plus_plus,
+                ) for seed in range(simulations)])
+
+                per_step_rewards = list()
+                for i in range(simulations):
+                    rewards = [0]
+                    for j in range(step_limit):
+                        if j == episode_length[i][0]:
+                            rewards.append(rewards[-1] + 1)
+                            episode_length[i][1] += episode_length[i][0]
+                            episode_length[i].pop(0)
+                        else:
+                            rewards.append(rewards[-1])
+                    per_step_rewards.append(rewards)
+
+                cumulative_rewards[algo] = np.mean(np.asarray(per_step_rewards), axis=0)
+
+            fig = dm.plot_rewards(cumulative_rewards)
+
+            description = """
+            ### Example 8.3: Shortcut Maze
+
+            ---
+
+            The problem caused by this kind of
+            environmental change is illustrated
+            by the maze example shown in Figure
+            8.5. Initially, the optimal path is
+            to go around the left side of the barrier
+            (upper left). After 3000 steps,
+            however, a shorter path is opened up
+            along the right side, without disturbing
+            the longer path (upper right).
+            The graph shows that the regular
+            Dyna-Q agent never switched to the
+            shortcut. In fact, it never realized
+            that it existed. Its model said that
+            there was no shortcut, so the more it
+            planned, the less likely it was to step
+            to the right and discover it. Even
+            with an "-greedy policy, it is very
+            unlikely that an agent will take so
+            many exploratory actions as to discover
+            the shortcut.
+
+            ---
+
+            """
+            return [
+                html.Div(
+                    dcc.Graph(
+                        id='cumulative-rewards',
+                        figure=fig,
+                        className='six columns'
+                    ),
+                ),
+            ]
+
+        elif maze_type == 'Prioritized Sweeping':
+
+            from envs.maze_gen import recursive_backtracker
+
+            updates_until_optimal = {'dyna_q': dict(), 'prioritized_sweeping': dict()}
+            simulations = 1
+
+            for algo in tqdm(updates_until_optimal.keys()):
+
+                for dim in range(50, 6001, 50):
+
+                    # generate a maze
+                    grid = recursive_backtracker(width=dim, height=dim, seed=dim)
+                    blocks = np.argwhere(grid == 0)
+                    free_space = np.argwhere(grid == 1)
+
+                    # randomly determine start and goal state for now (use heuristic and distance measure)
+                    start_state = goal_state = tuple(free_space[np.random.randint(0, free_space.shape[0] - 1)])
+                    while goal_state == start_state:
+                        goal_state = tuple(free_space[np.random.randint(0, free_space.shape[0] - 1)])
+
+                    dm = DynaMaze(width=dim, height=dim, default_reward=0, other_rewards={goal_state: 1},
+                                  start_state=start_state, goal=goal_state, blocks=blocks)
+
+                    # solve the maze
+                    if algo == 'dyna_q':
+                        planning_steps = 5
+                        step_size = 0.5
+
+                        num_steps = ray.get([dm.q_planning.remote(
+                            dm, planning_steps=planning_steps, n_episodes=100000000, alpha=step_size, seed=seed,
+                        ) for seed in range(simulations)])
+                    elif algoo == 'prioritized_sweeping':
+                        theta = 0.0001
+                        planning_steps = 5
+                        step_size = 0.5
+
+                        num_steps = ray.get([dm.prioritized_sweeping.remote(
+                            dm, planning_steps=planning_steps, n_episodes=100000000, alpha=step_size, theta=theta,
+                            seed=seed
+                        ) for seed in range(simulations)])
+
+                    updates_until_optimal[algo][dim] = np.mean(np.asarray(num_steps))
+
+            fig = dm.plot_convergence_speed(updates_until_optimal)
+            return [
+                html.Div(
+                    dcc.Graph(
+                        id='prioritized-sweeping',
+                        figure=fig,
+                        className='six columns'
+                    ),
+                ),
+            ]
