@@ -4,8 +4,9 @@ import plotly.graph_objs as go
 import ray
 from envs.CliffWalking import GridWorld
 from typing import List
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from tqdm import tqdm
+from heapdict import heapdict
 
 
 class DynaMaze(GridWorld):
@@ -48,6 +49,11 @@ class DynaMaze(GridWorld):
     def randargmax(ndarray):
         """ a random tie-breaking argmax """
         return np.argmax(np.random.random(ndarray.shape) * (ndarray == ndarray.max()))
+
+    @staticmethod
+    def randmax(ndarray):
+        """ a random tie-breaking max """
+        return np.max(np.random.random(ndarray.shape) * (ndarray == ndarray.max()))
 
     @ray.remote
     def q_planning(self, planning_steps: int = 0, n_episodes: int = 50, alpha: float = 0.1, gamma: float = 0.95,
@@ -142,6 +148,86 @@ class DynaMaze(GridWorld):
 
         return episode_length
 
+    # @ray.remote
+    def prioritized_sweeping(self, planning_steps: int = 0, n_episodes: int = 50, alpha: float = 0.1,
+                             gamma: float = 0.95,
+                             epsilon: float = 0.1, theta: float = 0.00001, verbose: bool = False, seed: int = None,
+                             ):
+        if seed:
+            random.seed(seed)
+            np.random.seed(seed)
+
+        q_shape = [len(self.actions)] + list(self.grid.shape)
+        q_values = np.zeros(shape=q_shape)
+        model = defaultdict(lambda: defaultdict(tuple))
+        p_queue = heapdict()
+        predecessors = defaultdict(set)  # to track all the states leading into a given state
+
+        if verbose:
+            self.grid = self.grid.astype(int)
+            grid = self.grid.copy()
+
+        total_steps_per_episode = list()
+        for e in tqdm(range(n_episodes)):
+            total_steps = 0
+
+            state = self.start_state
+            while state != self.goal:
+
+                a = self.randargmax(q_values[:, state[0], state[1]])
+                a = self.epsilon_greedy(a, epsilon)
+                state_next, reward = self.state_transition(state, self.actions[a])
+
+                if verbose:
+                    print(grid.T)
+                    print('current state:', state)
+                    print('next action:', a)
+                    print('next action:', state_next)
+
+                model[state][a] = (reward, state_next)
+                # remember state-action pairs and associated rewards that led to the next state
+                predecessors[state_next].add((state, a, reward))
+
+                q_index = a, state[0], state[1]
+                q_index_next = self.randargmax(q_values[:, state_next[0], state_next[1]]), state_next[0], state_next[1]
+                priority = abs(reward + gamma * (q_values[q_index_next]) - q_values[q_index])
+                if priority > theta:
+                    if not p_queue.get((state, a)):
+                        p_queue[state, a] = 0
+                    # note that python's native heapq works for min elements only
+                    p_queue[state, a] = min(p_queue[state, a], priority * -1)
+
+                for n in range(planning_steps):
+                    if not p_queue:
+                        break
+
+                    s, a = p_queue.popitem()[0]
+                    reward, s_next = model[s][a]
+
+                    q_index = a, s[0], s[1]
+                    q_index_next = self.randargmax(q_values[:, s_next[0], s_next[1]]), s_next[0], s_next[1]
+                    q_values[q_index] += alpha * (reward + gamma * q_values[q_index_next] - q_values[q_index])
+
+                    # deal with all the predecessors of the sample state
+                    for state_prev, a_prev, reward_prev in predecessors[s]:
+                        q_index = a_prev, state_prev[0], state_prev[1]
+                        priority = abs(reward_prev + gamma * self.randmax(q_values[:, s[0], s[1]]) - q_values[q_index])
+                        if priority > theta:
+                            if not p_queue.get((state_prev, a_prev)):
+                                p_queue[state_prev, a_prev] = 0
+                            p_queue[state_prev, a_prev] = min(p_queue[state_prev, a_prev], priority * -1)
+
+                    total_steps += 1
+
+                if verbose:
+                    grid = self.grid.copy()
+                    grid[state] = 10
+
+                state = state_next
+
+            total_steps_per_episode.append(total_steps)
+        return total_steps_per_episode
+
     @staticmethod
     def plot_learning_curves(episodes):
 
@@ -152,7 +238,7 @@ class DynaMaze(GridWorld):
                 y=steps_per_episode,
                 name=f'{n} planning steps',
             )
-        )
+            )
 
         layout = dict(
             height=700,
@@ -176,7 +262,7 @@ class DynaMaze(GridWorld):
                 y=cum_rewards,
                 name=algo,
             )
-        )
+            )
 
         layout = dict(
             height=700,

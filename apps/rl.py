@@ -23,573 +23,585 @@ import random
 import importlib
 from collections import OrderedDict
 import numpy as np
+
 from tqdm import tqdm
+import redis
 import ray
 
+db = redis.StrictRedis(port=6379)
 ray.init(ignore_reinit_error=True)
 
 layout = html.Div([
     html.Div(
-            children=[
+        children=[
 
-                ################
-                # HEADER
-                ################
+            ################
+            # HEADER
+            ################
 
-                html.Div(
-                        id='header',
-                        children=[
+            html.Div(
+                id='header',
+                children=[
+                    html.Div(
+                        [
                             html.Div(
-                                    [
-                                        html.Div(
-                                                id='title_div',
-                                                children=[
-                                                    html.H2("RL Experiments"),
-                                                ],
-                                                className='two columns title',
-                                        ),
-                                        html.Div(
-                                                id='tabs_div',
-                                                children=[
-                                                    dcc.Tabs(
-                                                            id='section',
-                                                            style=container_style,
-                                                            value='Random Walk',
-                                                            children=[
-                                                                dcc.Tab(
-                                                                        label='Grid World',
-                                                                        value='Grid World',
-                                                                        style=tab_style,
-                                                                        selected_style=selected_style,
-                                                                ),
-                                                                # dcc.Tab(
-                                                                #     label='Car Rental',
-                                                                #     value='Car Rental',
-                                                                #     style=tab_style,
-                                                                #     selected_style=selected_style
-                                                                # ),
-                                                                dcc.Tab(
-                                                                        label="Gambler's Ruin",
-                                                                        value="Gambler's Ruin",
-                                                                        style=tab_style,
-                                                                        selected_style=selected_style
-                                                                ),
-                                                                # dcc.Tab(
-                                                                #     label="Mario VS Bowser",
-                                                                #     value="Mario VS Bowser",
-                                                                #     style=tab_style,
-                                                                #     selected_style=selected_style
-                                                                # ),
-                                                                dcc.Tab(
-                                                                        label="Blackjack",
-                                                                        value="Blackjack",
-                                                                        style=tab_style,
-                                                                        selected_style=selected_style
-                                                                ),
-                                                                # dcc.Tab(
-                                                                #         label='Tic Tac Toe',
-                                                                #         value='Tic Tac Toe',
-                                                                #         style=tab_style,
-                                                                #         selected_style=selected_style
-                                                                # ),
-                                                                dcc.Tab(
-                                                                        label='Random Walk',
-                                                                        value='Random Walk',
-                                                                        style=tab_style,
-                                                                        selected_style=selected_style
-                                                                ),
-                                                                dcc.Tab(
-                                                                        label='Windy Gridworld',
-                                                                        value='Windy Gridworld',
-                                                                        style=tab_style,
-                                                                        selected_style=selected_style
-                                                                ),
-                                                                dcc.Tab(
-                                                                        label='Cliff Walking',
-                                                                        value='Cliff Walking',
-                                                                        style=tab_style,
-                                                                        selected_style=selected_style
-                                                                ),
-                                                                dcc.Tab(
-                                                                        label='Dyna Maze',
-                                                                        value='Dyna Maze',
-                                                                        style=tab_style,
-                                                                        selected_style=selected_style
-                                                                ),
+                                id='title_div',
+                                children=[
+                                    html.H2("RL Experiments"),
+                                ],
+                                className='two columns title',
+                            ),
+                            html.Div(
+                                id='tabs_div',
+                                children=[
+                                    dcc.Tabs(
+                                        id='section',
+                                        style=container_style,
+                                        value='Random Walk',
+                                        children=[
+                                            dcc.Tab(
+                                                label='Grid World',
+                                                value='Grid World',
+                                                style=tab_style,
+                                                selected_style=selected_style,
+                                            ),
+                                            # dcc.Tab(
+                                            #     label='Car Rental',
+                                            #     value='Car Rental',
+                                            #     style=tab_style,
+                                            #     selected_style=selected_style
+                                            # ),
+                                            dcc.Tab(
+                                                label="Gambler's Ruin",
+                                                value="Gambler's Ruin",
+                                                style=tab_style,
+                                                selected_style=selected_style
+                                            ),
+                                            # dcc.Tab(
+                                            #     label="Mario VS Bowser",
+                                            #     value="Mario VS Bowser",
+                                            #     style=tab_style,
+                                            #     selected_style=selected_style
+                                            # ),
+                                            dcc.Tab(
+                                                label="Blackjack",
+                                                value="Blackjack",
+                                                style=tab_style,
+                                                selected_style=selected_style
+                                            ),
+                                            # dcc.Tab(
+                                            #         label='Tic Tac Toe',
+                                            #         value='Tic Tac Toe',
+                                            #         style=tab_style,
+                                            #         selected_style=selected_style
+                                            # ),
+                                            dcc.Tab(
+                                                label='Random Walk',
+                                                value='Random Walk',
+                                                style=tab_style,
+                                                selected_style=selected_style
+                                            ),
+                                            dcc.Tab(
+                                                label='Windy Gridworld',
+                                                value='Windy Gridworld',
+                                                style=tab_style,
+                                                selected_style=selected_style
+                                            ),
+                                            dcc.Tab(
+                                                label='Cliff Walking',
+                                                value='Cliff Walking',
+                                                style=tab_style,
+                                                selected_style=selected_style
+                                            ),
+                                            dcc.Tab(
+                                                label='Dyna Maze',
+                                                value='Dyna Maze',
+                                                style=tab_style,
+                                                selected_style=selected_style
+                                            ),
 
-                                                            ],
-                                                    ),
-                                                ],
-                                                className='eight columns',
-                                        ),
-                                        html.Div(
-                                                id='button_div',
-                                                children=[
-                                                    html.Button('Stop', id='button'),
-                                                ],
-                                                className='one column custom_button',
-                                        ),
-                                    ],
-                                    className='row'
-                            ),
-                            html.Div(
-                                    id='description_div',
-                                    children=[
-                                        html.Div(
-                                                id='description',
-                                                children=[dcc.Markdown([dedent(RandomWalk.description())])],
-                                                style={'margin-right': '5%', 'margin-left': '5%'}
-                                        ),
-                                    ],
-                                    className='row description'
-                            ),
-                        ],
-                        className='header'
-                ),
-
-                ################
-                # BODY
-                ################
-
-                html.Div(
-                        id='static_components',
-                        children=[
-
-                            #################
-                            # DP
-                            html.Div(
-                                    id='gamma_div',
-                                    children=[
-                                        html.Label('Gamma:', style={'textAlign': 'center'}),
-                                        dcc.Input(
-                                                id='gamma',
-                                                placeholder='Decay constant',
-                                                type='number',
-                                                value=1,
-                                                style={'width': '100%', 'textAlign': 'center'}
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='one column',
-                            ),
-                            html.Div(
-                                    id='grid_size_div',
-                                    children=[
-                                        html.Label('Square grid dimensions :', style={'textAlign': 'center'}),
-                                        dcc.Input(
-                                                id='grid_size',
-                                                placeholder='NxN grid',
-                                                type='number',
-                                                value=4,
-                                                style={'width': '100%', 'textAlign': 'center'}
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='in_place_div',
-                                    children=[
-                                        html.Label('In place value updates:', style={'textAlign': 'center'}),
-                                        dcc.Dropdown(
-                                                id='in_place',
-                                                options=[{'label': s, 'value': s} for s in ['True', 'False']],
-                                                value='True'
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='prob_heads_div',
-                                    children=[
-                                        html.Label('Probability of heads:', style={'textAlign': 'center'}),
-                                        dcc.Input(
-                                                id='prob_heads',
-                                                placeholder='0.4',
-                                                type='number',
-                                                step=0.1,
-                                                value=0.4,
-                                                style={'width': '100%', 'textAlign': 'center'}
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            ####################################################################################
-                            html.Div(
-                                    id='goal_div',
-                                    children=[
-                                        html.Label('Goal:', style={'textAlign': 'center'}),
-                                        dcc.Input(
-                                                id='goal',
-                                                placeholder='100$',
-                                                type='number',
-                                                step=10,
-                                                value=100,
-                                                style={'width': '100%', 'textAlign': 'center'}
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='max_cars_div',
-                                    children=[
-                                        html.Label('Maximum cars at location:', style={'textAlign': 'center'}),
-                                        dcc.Input(
-                                                id='max_cars',
-                                                placeholder='20',
-                                                type='number',
-                                                step=5,
-                                                value=20,
-                                                style={'width': '100%', 'textAlign': 'center'}
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='max_move_cars_div',
-                                    children=[
-                                        html.Label('Maximum cars to move overnight:', style={'textAlign': 'center'}),
-                                        dcc.Input(
-                                                id='max_move_cars',
-                                                placeholder='5',
-                                                type='number',
-                                                step=1,
-                                                value=5,
-                                                style={'width': '100%', 'textAlign': 'center'}
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='rental_rate_div',
-                                    children=[
-                                        html.Label('Rental rates at locations 1 and 2:', style={'textAlign': 'center'}),
-                                        dcc.Input(
-                                                id='rental_rate',
-                                                placeholder='3, 4',
-                                                type='text',
-                                                value='3, 4',
-                                                style={'width': '100%', 'textAlign': 'center'}
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='return_rate_div',
-                                    children=[
-                                        html.Label('Return rates at locations 1 and 2:', style={'textAlign': 'center'}),
-                                        dcc.Input(
-                                                id='return_rate',
-                                                placeholder='3, 2',
-                                                type='text',
-                                                value='3, 2',
-                                                style={'width': '100%', 'textAlign': 'center'}
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='rental_credit_div',
-                                    children=[
-                                        html.Label('Reward for renting a car:', style={'textAlign': 'center'}),
-                                        dcc.Input(
-                                                id='rental_credit',
-                                                placeholder='10$',
-                                                type='number',
-                                                step=2,
-                                                value=10,
-                                                style={'width': '100%', 'textAlign': 'center'}
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='move_car_cost_div',
-                                    children=[
-                                        html.Label('Cost of moving a car:', style={'textAlign': 'center'}),
-                                        dcc.Input(
-                                                id='move_car_cost',
-                                                placeholder='2$',
-                                                type='number',
-                                                step=1,
-                                                value=2,
-                                                style={'width': '100%', 'textAlign': 'center'}
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            ####################################################################################
-                            html.Div(
-                                    id='task_div',
-                                    children=[
-                                        html.Label('Task:', style={'textAlign': 'center'}),
-                                        dcc.Dropdown(
-                                                id='task',
-                                                options=[{'label': s, 'value': s} for s in ['Evaluation', 'Control']],
-                                                value='Evaluation'
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='exploration_div',
-                                    children=[
-                                        html.Label('Exploration Method:', style={'textAlign': 'center'}),
-                                        dcc.Dropdown(
-                                                id='exploration',
-                                                options=[{'label': s, 'value': s} for s in
-                                                         ['Exploring Starts', 'Epsilon Greedy']],
-                                                value='Epsilon Greedy'
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='n_iter_div',
-                                    children=[
-                                        html.Label('Number of episodes:', style={'textAlign': 'center'}),
-                                        dcc.Input(
-                                                id='n_iter',
-                                                placeholder='10000',
-                                                type='number',
-                                                step=10000,
-                                                value=10000,
-                                                style={'width': '100%', 'textAlign': 'center'}
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='behavior_div',
-                                    children=[
-                                        html.Label('Behavioral policy', style={'textAlign': 'center'}),
-                                        dcc.Dropdown(
-                                                id='behavior',
-                                                options=[{'label': s, 'value': s} for s in
-                                                         ['Random', 'Epsilon greedy']],
-                                                value='True'
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='policy_div',
-                                    children=[
-                                        html.Label('Off Policy', style={'textAlign': 'center'}),
-                                        dcc.Dropdown(
-                                                id='off_policy',
-                                                options=[{'label': s, 'value': s} for s in ['True', 'False']],
-                                                value='True'
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='feature_div',
-                                    children=[
-                                        html.Label('Features', style={'textAlign': 'center'}),
-                                        dcc.Dropdown(
-                                                id='feature',
-                                                options=[{'label': s, 'value': s} for s in
-                                                         ['Simple', 'Stochastic Wind', 'King Moves']],
-                                                value='Simple'
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                    id='walk_length_div',
-                                    children=[
-                                        html.Label('Walk Length', style={'textAlign': 'center'}),
-                                        dcc.Input(
-                                                id='walk_length',
-                                                placeholder='10000',
-                                                type='number',
-                                                step=5,
-                                                value=5,
-                                                style={'width': '100%', 'textAlign': 'center'}
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='one columns',
-                            ),
-                            html.Div(
-                                    id='comparison_div',
-                                    children=[
-                                        html.Label('Compare algorithms', style={'textAlign': 'center'}),
-                                        dcc.Dropdown(
-                                                id='comparison',
-                                                options=[{'label': s, 'value': s} for s in
-                                                         ['TD vs MC', 'n-steps']],
-                                                value='TD vs MC'
-                                        )
-                                    ],
-                                    style={'display': 'none'},
-                                    className='two columns',
-                            ),
-                            html.Div(
-                                id='maze_type_div',
-                                children=[
-                                    html.Label('Maze type', style={'textAlign': 'center'}),
-                                    dcc.Dropdown(
-                                        id='maze_type',
-                                        options=[{'label': s, 'value': s} for s in
-                                                 ['Dyna Maze', 'Blocking Maze', 'Shortcut Maze', 'Prioritized Sweeping']],
-                                        value='Dyna Maze'
-                                    )
+                                        ],
+                                    ),
                                 ],
-                                style={'display': 'none'},
-                                className='two columns',
+                                className='eight columns',
                             ),
                             html.Div(
-                                id='planning_steps_div',
+                                id='button_div',
                                 children=[
-                                    html.Label('Planning Steps', style={'textAlign': 'center'}),
-                                    dcc.Dropdown(
-                                        id='planning_steps',
-                                        options=[{'label': s, 'value': s} for s in [0, 10, 50]],
-                                        value=10
-                                    )
+                                    html.Button('Stop', id='button'),
                                 ],
-                                style={'display': 'none'},
-                                className='one column',
-                            ),
-                            html.Div(
-                                id='switch_time_div',
-                                children=[
-                                    html.Label('Maze Switching Time-step', style={'textAlign': 'center'}),
-                                    dcc.Input(
-                                        id='switch_time',
-                                        placeholder='1000',
-                                        type='number',
-                                        step=100,
-                                        value=1000,
-                                        style={'width': '100%', 'textAlign': 'center'}
-                                    )
-                                ],
-                                style={'display': 'none'},
-                                className='one column',
-                            ),
-                            html.Div(
-                                id='step_limit_div',
-                                children=[
-                                    html.Label('Last Time-step', style={'textAlign': 'center'}),
-                                    dcc.Input(
-                                        id='step_limit',
-                                        placeholder='3000',
-                                        type='number',
-                                        step=100,
-                                        value=3000,
-                                        style={'width': '100%', 'textAlign': 'center'}
-                                    )
-                                ],
-                                style={'display': 'none'},
-                                className='one column',
-                            ),
-                            html.Div(
-                                id='step_size_div',
-                                children=[
-                                    html.Label('Step Size (alpha)', style={'textAlign': 'center'}),
-                                    dcc.Input(
-                                        id='step_size',
-                                        placeholder='1',
-                                        type='number',
-                                        step=0.1,
-                                        value=1,
-                                        style={'width': '100%', 'textAlign': 'center'}
-                                    )
-                                ],
-                                style={'display': 'none'},
-                                className='one column',
-                            ),
-                            html.Div(
-                                id='time_weight_div',
-                                children=[
-                                    html.Label('Time Weight (kappa)', style={'textAlign': 'center'}),
-                                    dcc.Input(
-                                        id='time_weight',
-                                        placeholder='0.0001',
-                                        type='number',
-                                        step=0.001,
-                                        value=0.0001,
-                                        style={'width': '100%', 'textAlign': 'center'}
-                                    )
-                                ],
-                                style={'display': 'none'},
-                                className='one column',
-                            ),
-                            html.Div(
-                                id='simulation_div',
-                                children=[
-                                    html.Label('Simulations:', style={'textAlign': 'center'}),
-                                    dcc.Input(
-                                        id='simulation',
-                                        placeholder='100',
-                                        type='number',
-                                        step=10,
-                                        value=100,
-                                        style={'width': '100%', 'textAlign': 'center'}
-                                    )
-                                ],
-                                style={'display': 'none'},
-                                className='one column',
+                                className='one column custom_button',
                             ),
                         ],
                         className='row'
-                ),
-
-                html.Div(
-                        id='dynamic_components',
+                    ),
+                    html.Div(
+                        id='description_div',
                         children=[
                             html.Div(
-                                    id='rl-display-values',
-                                    children=[
-                                        dcc.Loading(id='rl-display-results', type='cube')
-                                        # type='graph', className='pv6')
-                                    ],
-                                    style={
-                                        'textAlign' : 'center',
-                                        'fontFamily': 'Avenir',
-                                    }
+                                id='description',
+                                children=[dcc.Markdown([dedent(RandomWalk.description())])],
+                                style={'margin-right': '5%', 'margin-left': '5%'}
                             ),
                         ],
-                        className='row',
-                ),
-                html.Br(),
-                dcc.Link('To Bandits', href='/bandits'),
-                html.Br(),
-                dcc.Link('To HOME', href='/'),
-            ],
-            style={
-                'width'       : '100%',
-                'fontFamily'  : 'Avenir',
-                'margin-left' : 'auto',
-                'margin-right': 'auto',
-            }
+                        className='row description'
+                    ),
+                ],
+                className='header'
+            ),
+
+            ################
+            # BODY
+            ################
+
+            html.Div(
+                id='static_components',
+                children=[
+
+                    #################
+                    # DP
+                    html.Div(
+                        id='gamma_div',
+                        children=[
+                            html.Label('Gamma:', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='gamma',
+                                placeholder='Decay constant',
+                                type='number',
+                                value=1,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='one column',
+                    ),
+                    html.Div(
+                        id='grid_size_div',
+                        children=[
+                            html.Label('Square grid dimensions :', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='grid_size',
+                                placeholder='NxN grid',
+                                type='number',
+                                value=4,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='in_place_div',
+                        children=[
+                            html.Label('In place value updates:', style={'textAlign': 'center'}),
+                            dcc.Dropdown(
+                                id='in_place',
+                                options=[{'label': s, 'value': s} for s in ['True', 'False']],
+                                value='True'
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='prob_heads_div',
+                        children=[
+                            html.Label('Probability of heads:', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='prob_heads',
+                                placeholder='0.4',
+                                type='number',
+                                step=0.1,
+                                value=0.4,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    ####################################################################################
+                    html.Div(
+                        id='goal_div',
+                        children=[
+                            html.Label('Goal:', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='goal',
+                                placeholder='100$',
+                                type='number',
+                                step=10,
+                                value=100,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='max_cars_div',
+                        children=[
+                            html.Label('Maximum cars at location:', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='max_cars',
+                                placeholder='20',
+                                type='number',
+                                step=5,
+                                value=20,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='max_move_cars_div',
+                        children=[
+                            html.Label('Maximum cars to move overnight:', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='max_move_cars',
+                                placeholder='5',
+                                type='number',
+                                step=1,
+                                value=5,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='rental_rate_div',
+                        children=[
+                            html.Label('Rental rates at locations 1 and 2:', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='rental_rate',
+                                placeholder='3, 4',
+                                type='text',
+                                value='3, 4',
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='return_rate_div',
+                        children=[
+                            html.Label('Return rates at locations 1 and 2:', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='return_rate',
+                                placeholder='3, 2',
+                                type='text',
+                                value='3, 2',
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='rental_credit_div',
+                        children=[
+                            html.Label('Reward for renting a car:', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='rental_credit',
+                                placeholder='10$',
+                                type='number',
+                                step=2,
+                                value=10,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='move_car_cost_div',
+                        children=[
+                            html.Label('Cost of moving a car:', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='move_car_cost',
+                                placeholder='2$',
+                                type='number',
+                                step=1,
+                                value=2,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    ####################################################################################
+                    html.Div(
+                        id='task_div',
+                        children=[
+                            html.Label('Task:', style={'textAlign': 'center'}),
+                            dcc.Dropdown(
+                                id='task',
+                                options=[{'label': s, 'value': s} for s in ['Evaluation', 'Control']],
+                                value='Evaluation'
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='exploration_div',
+                        children=[
+                            html.Label('Exploration Method:', style={'textAlign': 'center'}),
+                            dcc.Dropdown(
+                                id='exploration',
+                                options=[{'label': s, 'value': s} for s in
+                                         ['Exploring Starts', 'Epsilon Greedy']],
+                                value='Epsilon Greedy'
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='n_iter_div',
+                        children=[
+                            html.Label('Number of episodes:', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='n_iter',
+                                placeholder='10000',
+                                type='number',
+                                step=10000,
+                                value=10000,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='behavior_div',
+                        children=[
+                            html.Label('Behavioral policy', style={'textAlign': 'center'}),
+                            dcc.Dropdown(
+                                id='behavior',
+                                options=[{'label': s, 'value': s} for s in
+                                         ['Random', 'Epsilon greedy']],
+                                value='True'
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='policy_div',
+                        children=[
+                            html.Label('Off Policy', style={'textAlign': 'center'}),
+                            dcc.Dropdown(
+                                id='off_policy',
+                                options=[{'label': s, 'value': s} for s in ['True', 'False']],
+                                value='True'
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='feature_div',
+                        children=[
+                            html.Label('Features', style={'textAlign': 'center'}),
+                            dcc.Dropdown(
+                                id='feature',
+                                options=[{'label': s, 'value': s} for s in
+                                         ['Simple', 'Stochastic Wind', 'King Moves']],
+                                value='Simple'
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='walk_length_div',
+                        children=[
+                            html.Label('Walk Length', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='walk_length',
+                                placeholder='10000',
+                                type='number',
+                                step=5,
+                                value=5,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='one columns',
+                    ),
+                    html.Div(
+                        id='comparison_div',
+                        children=[
+                            html.Label('Compare algorithms', style={'textAlign': 'center'}),
+                            dcc.Dropdown(
+                                id='comparison',
+                                options=[{'label': s, 'value': s} for s in
+                                         ['TD vs MC', 'n-steps']],
+                                value='TD vs MC'
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='maze_type_div',
+                        children=[
+                            html.Label('Maze type', style={'textAlign': 'center'}),
+                            dcc.Dropdown(
+                                id='maze_type',
+                                options=[{'label': s, 'value': s} for s in
+                                         ['Dyna Maze', 'Blocking Maze', 'Shortcut Maze', 'Prioritized Sweeping']],
+                                value='Dyna Maze'
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='two columns',
+                    ),
+                    html.Div(
+                        id='planning_steps_div',
+                        children=[
+                            html.Label('Planning Steps', style={'textAlign': 'center'}),
+                            dcc.Dropdown(
+                                id='planning_steps',
+                                options=[{'label': s, 'value': s} for s in [0, 10, 50]],
+                                value=10
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='one column',
+                    ),
+                    html.Div(
+                        id='switch_time_div',
+                        children=[
+                            html.Label('Maze Switching Time-step', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='switch_time',
+                                placeholder='1000',
+                                type='number',
+                                step=100,
+                                value=1000,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='one column',
+                    ),
+                    html.Div(
+                        id='step_limit_div',
+                        children=[
+                            html.Label('Last Time-step', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='step_limit',
+                                placeholder='3000',
+                                type='number',
+                                step=100,
+                                value=3000,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='one column',
+                    ),
+                    html.Div(
+                        id='step_size_div',
+                        children=[
+                            html.Label('Step Size (alpha)', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='step_size',
+                                placeholder='1',
+                                type='number',
+                                step=0.1,
+                                value=1,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='one column',
+                    ),
+                    html.Div(
+                        id='time_weight_div',
+                        children=[
+                            html.Label('Time Weight (kappa)', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='time_weight',
+                                placeholder='0.0001',
+                                type='number',
+                                step=0.001,
+                                value=0.0001,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='one column',
+                    ),
+                    html.Div(
+                        id='simulation_div',
+                        children=[
+                            html.Label('Simulations:', style={'textAlign': 'center'}),
+                            dcc.Input(
+                                id='simulation',
+                                placeholder='100',
+                                type='number',
+                                step=10,
+                                value=100,
+                                style={'width': '100%', 'textAlign': 'center'}
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='one column',
+                    ),
+                ],
+                className='row'
+            ),
+
+            html.Div(
+                id='dynamic_components',
+                children=[
+                    html.Div(
+                        id='rl-display-values',
+                        children=[
+                            dcc.Loading(id='rl-display-results', type='cube')
+                            # type='graph', className='pv6')
+                        ],
+                        style={
+                            'textAlign' : 'center',
+                            'fontFamily': 'Avenir',
+                        },
+                        className='six columns',
+                    ),
+                    html.Div(
+                        id='training_div',
+                        children=[
+                            html.Div(
+                                children=dcc.Graph(id='training_live'),
+                            ),
+                            dcc.Interval(id='training', interval=1000 * 5, n_intervals=0),
+                        ],
+                        style={
+                            'textAlign' : 'center',
+                            'fontFamily': 'Avenir',
+                        },
+                        className='six columns',
+                    ),
+                ],
+                className='row',
+            ),
+            html.Br(),
+            dcc.Link('To Bandits', href='/bandits'),
+            html.Br(),
+            dcc.Link('To HOME', href='/'),
+        ],
+        className='page',
     )
 ])
-
 
 display = ({'display': 'none'}, {'display': 'block'})
 output_ids = sorted({
     'behavior_div', 'comparison_div', 'walk_length_div', 'feature_div', 'exploration_div', 'simulation_div', 'task_div',
-    'policy_div', 'n_iter_div', 'prob_heads_div', 'goal_div', 'grid_size_div', 
-    'gamma_div', 'max_cars_div','max_move_cars_div', 'rental_rate_div', 'rental_credit_div', 'move_car_cost_div',
+    'policy_div', 'n_iter_div', 'prob_heads_div', 'goal_div', 'grid_size_div',
+    'gamma_div', 'max_cars_div', 'max_move_cars_div', 'rental_rate_div', 'rental_credit_div', 'move_car_cost_div',
     'maze_type_div', 'switch_time_div', 'step_limit_div', 'step_size_div', 'time_weight_div', 'planning_steps_div'
 })
 active_outputs = OrderedDict(zip(output_ids, (display[0] for _ in range(len(output_ids)))))
@@ -597,39 +609,39 @@ outputs_components = [Output(output_id, 'style') for output_id in output_ids]
 
 
 @app.callback(
-        outputs_components,
-        [
-            Input('section', 'value'),
-            Input('task', 'value'),
-            Input('off_policy', 'value'),
-            Input('maze_type', 'value'),
-        ],
-        [
-            # Shared across DP
-            State('in_place', 'value'),
+    outputs_components,
+    [
+        Input('section', 'value'),
+        Input('task', 'value'),
+        Input('off_policy', 'value'),
+        Input('maze_type', 'value'),
+    ],
+    [
+        # Shared across DP
+        State('in_place', 'value'),
 
-            # Gridworld DP
-            State('grid_size', 'value'),
-            State('gamma', 'value'),
+        # Gridworld DP
+        State('grid_size', 'value'),
+        State('gamma', 'value'),
 
-            # Car Rentals
+        # Car Rentals
 
-            # Gambler's Ruin
-            State('prob_heads', 'value'),
-            State('goal', 'value'),
+        # Gambler's Ruin
+        State('prob_heads', 'value'),
+        State('goal', 'value'),
 
-            # Blackjack
-            State('exploration', 'value'),
-            State('n_iter', 'value'),
-            State('behavior', 'value'),
+        # Blackjack
+        State('exploration', 'value'),
+        State('n_iter', 'value'),
+        State('behavior', 'value'),
 
-            # Windy Gridworld
-            State('feature', 'value'),
+        # Windy Gridworld
+        State('feature', 'value'),
 
-            # Random Walk
-            State('comparison', 'value'),
-            State('walk_length', 'value'),
-        ]
+        # Random Walk
+        State('comparison', 'value'),
+        State('walk_length', 'value'),
+    ]
 )
 def show_hide(section, task, off_policy, maze_type,
               in_place,
@@ -639,7 +651,6 @@ def show_hide(section, task, off_policy, maze_type,
               feature,
               comparison, walk_length,
               ):
-
     print(section)
     show = set()
     if section in ["Random Walk"]:
@@ -678,9 +689,11 @@ def show_hide(section, task, off_policy, maze_type,
         if maze_type == 'Dyna Maze':
             show = {'simulation', 'n_iter', 'maze_type'}
         elif maze_type == 'Blocking Maze':
-            show = {'simulation', 'maze_type', 'switch_time', 'step_limit', 'step_size', 'time_weight', 'planning_steps'}
+            show = {'simulation', 'maze_type', 'switch_time', 'step_limit', 'step_size', 'time_weight',
+                    'planning_steps'}
         elif maze_type == 'Shortcut Maze':
-            show = {'simulation', 'maze_type', 'switch_time', 'step_limit', 'step_size', 'time_weight', 'planning_steps'}
+            show = {'simulation', 'maze_type', 'switch_time', 'step_limit', 'step_size', 'time_weight',
+                    'planning_steps'}
 
     show = {f'{component}_div' for component in show}
 
@@ -692,8 +705,8 @@ def show_hide(section, task, off_policy, maze_type,
 
 
 @app.callback(
-        Output('in_place_div', 'style'),
-        [Input('section', 'value')],
+    Output('in_place_div', 'style'),
+    [Input('section', 'value')],
 )
 def in_place_div(section):
     if section in ['Grid World', 'Car Rental', "Gambler's Ruin", 'Mario VS Bowser']:
@@ -701,19 +714,20 @@ def in_place_div(section):
     else:
         return {'display': 'none'}
 
+
 #####################################################
 # DEFAULT VALUES
 # TODO: refactor as in show/hide
 
 
 @app.callback(
-        Output('n_iter', 'value'),
-        [
-            Input('task', 'value'),
-            Input('off_policy', 'value'),
-            Input('comparison', 'value'),
-            Input('section', 'value')
-        ],
+    Output('n_iter', 'value'),
+    [
+        Input('task', 'value'),
+        Input('off_policy', 'value'),
+        Input('comparison', 'value'),
+        Input('section', 'value')
+    ],
 )
 def n_iter(task, off_policy, comparison, section):
     if section == 'Blackjack':
@@ -734,14 +748,14 @@ def n_iter(task, off_policy, comparison, section):
 
 
 @app.callback(
-        Output('simulation', 'value'),
-        [
-            Input('task', 'value'),
-            Input('off_policy', 'value'),
-            Input('comparison', 'value'),
-            Input('maze_type', 'value'),
-            Input('section', 'value'),
-        ],
+    Output('simulation', 'value'),
+    [
+        Input('task', 'value'),
+        Input('off_policy', 'value'),
+        Input('comparison', 'value'),
+        Input('maze_type', 'value'),
+        Input('section', 'value'),
+    ],
 )
 def simulation(task, off_policy, comparison, maze_type, section):
     if section == 'Blackjack':
@@ -767,13 +781,13 @@ def simulation(task, off_policy, comparison, maze_type, section):
 
 
 @app.callback(
-        [
-            Output('switch_time', 'value'),
-            Output('step_limit', 'value'),
-        ],
-        [
-            Input('maze_type', 'value')
-        ],
+    [
+        Output('switch_time', 'value'),
+        Output('step_limit', 'value'),
+    ],
+    [
+        Input('maze_type', 'value')
+    ],
 )
 def switching_maze(maze_type):
     if maze_type == 'Blocking Maze':
@@ -785,8 +799,8 @@ def switching_maze(maze_type):
 
 
 @app.callback(
-        Output('planning_steps', 'value'),
-        [Input('maze_type', 'value')],
+    Output('planning_steps', 'value'),
+    [Input('maze_type', 'value')],
 )
 def planning_steps(maze_type):
     if maze_type == 'Blocking Maze':
@@ -808,16 +822,16 @@ def time_weight(maze_type):
 
 
 @app.callback(
-        Output('walk_length', 'value'),
-        [Input('comparison', 'value')],
+    Output('walk_length', 'value'),
+    [Input('comparison', 'value')],
 )
 def walk_length(comparison):
     return 5 if comparison in ["TD vs MC"] else 19
 
 
 @app.callback(
-        Output('gamma', 'value'),
-        [Input('section', 'value')],
+    Output('gamma', 'value'),
+    [Input('section', 'value')],
 )
 def gamma_value(section):
     if section in ['Car Rental']:
@@ -825,13 +839,14 @@ def gamma_value(section):
     else:
         return 1
 
+
 #####################################################
 
 
 @app.callback(
-        Output('button', 'children'),
-        [Input('button', 'n_clicks')],
-        [State('button', 'children')],
+    Output('button', 'children'),
+    [Input('button', 'n_clicks')],
+    [State('button', 'children')],
 )
 def disable_enable_button(clicked, state):
     print('BUTTON CLICK', clicked, state)
@@ -842,8 +857,8 @@ def disable_enable_button(clicked, state):
 
 
 @app.callback(
-        Output('description', 'children'),
-        [Input('section', 'value')]
+    Output('description', 'children'),
+    [Input('section', 'value')]
 )
 def description(section):
     classname = section.replace("\'", '').replace(' ', '')
@@ -857,50 +872,50 @@ def description(section):
 
 
 @app.callback(
-        Output('rl-display-results', 'children'),
-        [
-            Input('button', 'n_clicks')
-        ],
-        [
-            State('button', 'children'),
-            State('section', 'value'),
+    Output('rl-display-results', 'children'),
+    [
+        Input('button', 'n_clicks')
+    ],
+    [
+        State('button', 'children'),
+        State('section', 'value'),
 
-            # Shared across DP
-            State('in_place', 'value'),
+        # Shared across DP
+        State('in_place', 'value'),
 
-            # Gridworld DP
-            State('grid_size', 'value'),
-            State('gamma', 'value'),
+        # Gridworld DP
+        State('grid_size', 'value'),
+        State('gamma', 'value'),
 
-            # Car Rentals
+        # Car Rentals
 
-            # Gambler's Ruin
-            State('prob_heads', 'value'),
-            State('goal', 'value'),
+        # Gambler's Ruin
+        State('prob_heads', 'value'),
+        State('goal', 'value'),
 
-            # Blackjack
-            State('task', 'value'),
-            State('exploration', 'value'),
-            State('n_iter', 'value'),
-            State('off_policy', 'value'),
-            State('behavior', 'value'),
-            State('simulation', 'value'),
+        # Blackjack
+        State('task', 'value'),
+        State('exploration', 'value'),
+        State('n_iter', 'value'),
+        State('off_policy', 'value'),
+        State('behavior', 'value'),
+        State('simulation', 'value'),
 
-            # Windy Gridworld
-            State('feature', 'value'),
+        # Windy Gridworld
+        State('feature', 'value'),
 
-            # Random Walk
-            State('comparison', 'value'),
-            State('walk_length', 'value'),
+        # Random Walk
+        State('comparison', 'value'),
+        State('walk_length', 'value'),
 
-            # Maze Type
-            State('maze_type', 'value'),
-            State('step_size', 'value'),
-            State('step_limit', 'value'),
-            State('time_weight', 'value'),
-            State('switch_time', 'value'),
-            State('planning_steps', 'value'),
-        ],
+        # Maze Type
+        State('maze_type', 'value'),
+        State('step_size', 'value'),
+        State('step_limit', 'value'),
+        State('time_weight', 'value'),
+        State('switch_time', 'value'),
+        State('planning_steps', 'value'),
+    ],
 )
 def RL(clicks, button_state, section,
        in_place,
@@ -925,16 +940,22 @@ def RL(clicks, button_state, section,
     if button_state == 'Stop':
         raise PreventUpdate
 
+    show_traning = True
+    if show_traning:
+        # trigger another callback that displays learning progress
+        app.callback()
+        pass
+
     if section == 'Grid World':
 
         gw = GridWorld(grid_dim=grid_size, gamma=gamma)
         sv = gw.gridworld_policy_iteration(in_place=bool(in_place), theta=1e-4)
         fig = gw.plot_grid_world(sv)
         return html.Div(
-                dcc.Graph(
-                        id='results',
-                        figure=fig
-                ),
+            dcc.Graph(
+                id='results',
+                figure=fig
+            ),
         )
 
     elif section == 'Car Rental':
@@ -942,10 +963,10 @@ def RL(clicks, button_state, section,
         state_values, policies = cr.policy_iteration(in_place=bool(in_place))
         fig = cr.plot_policies(state_values[-1], policies[:-1])
         return html.Div(
-                dcc.Graph(
-                        id='values',
-                        figure=fig
-                ),
+            dcc.Graph(
+                id='values',
+                figure=fig
+            ),
         )
 
     elif section == "Gambler's Ruin":
@@ -954,18 +975,18 @@ def RL(clicks, button_state, section,
 
         return [
             html.Div(
-                    dcc.Graph(
-                            id='values',
-                            figure=gr.plot_value_iterations(state_values_seq)
-                    ),
-                    className=f'six columns',
+                dcc.Graph(
+                    id='values',
+                    figure=gr.plot_value_iterations(state_values_seq)
+                ),
+                className=f'six columns',
             ),
             html.Div(
-                    dcc.Graph(
-                            id='policy',
-                            figure=gr.plot_optimal_policy(policy)
-                    ),
-                    className=f'six columns',
+                dcc.Graph(
+                    id='policy',
+                    figure=gr.plot_optimal_policy(policy)
+                ),
+                className=f'six columns',
             )
         ]
 
@@ -975,10 +996,10 @@ def RL(clicks, button_state, section,
         sv_star, p_star = mb.value_iteration()
         fig = mb.plot_policies([sv, sv_star], [p, p_star])
         return html.Div(
-                dcc.Graph(
-                        id='values',
-                        figure=fig
-                ),
+            dcc.Graph(
+                id='values',
+                figure=fig
+            ),
         )
 
     elif section == "Blackjack":
@@ -998,16 +1019,16 @@ def RL(clicks, button_state, section,
                 """
                 return [
                     html.Div(
-                            id='graph-description',
-                            children=dcc.Markdown(dedent(description)),
-                            className='six columns'
+                        id='graph-description',
+                        children=dcc.Markdown(dedent(description)),
+                        className='six columns'
                     ),
                     html.Div(
-                            dcc.Graph(
-                                    id='value_estimate',
-                                    figure=bj.plot_value_function(bj.mc_prediction(n_iter), n_iter)
-                            ),
-                            className=f'six columns',
+                        dcc.Graph(
+                            id='value_estimate',
+                            figure=bj.plot_value_function(bj.mc_prediction(n_iter), n_iter)
+                        ),
+                        className=f'six columns',
                     ),
                     # html.Div(
                     #         dcc.Graph(
@@ -1046,16 +1067,16 @@ def RL(clicks, button_state, section,
                 fig = bj.plot_learning_curves(ordinary_msr, weighted_msr)
                 return [
                     html.Div(
-                            id='graph-description',
-                            children=dcc.Markdown(dedent(description)),
-                            className='six columns'
+                        id='graph-description',
+                        children=dcc.Markdown(dedent(description)),
+                        className='six columns'
                     ),
                     html.Div(
-                            dcc.Graph(
-                                    id='learning_curves',
-                                    figure=fig
-                            ),
-                            className='six columns'
+                        dcc.Graph(
+                            id='learning_curves',
+                            figure=fig
+                        ),
+                        className='six columns'
                     )
                 ]
 
@@ -1091,23 +1112,23 @@ def RL(clicks, button_state, section,
                 sv = np.max(q, axis=0)
                 return [
                     html.Div(
-                            id='graph-description',
-                            children=dcc.Markdown(dedent(description)),
-                            className='six columns'
+                        id='graph-description',
+                        children=dcc.Markdown(dedent(description)),
+                        className='six columns'
                     ),
                     html.Div(
-                            dcc.Graph(
-                                    id='optimal_value_function',
-                                    figure=bj.plot_value_function(sv)
-                            ),
-                            className=f'three columns',
+                        dcc.Graph(
+                            id='optimal_value_function',
+                            figure=bj.plot_value_function(sv)
+                        ),
+                        className=f'three columns',
                     ),
                     html.Div(
-                            dcc.Graph(
-                                    id='optimal_policy',
-                                    figure=bj.plot_policy(policy)
-                            ),
-                            className=f'three columns',
+                        dcc.Graph(
+                            id='optimal_policy',
+                            figure=bj.plot_policy(policy)
+                        ),
+                        className=f'three columns',
                     ),
                 ]
 
@@ -1137,37 +1158,37 @@ def RL(clicks, button_state, section,
                 """
                 return [
                     html.Div(
-                            id='graph-description',
-                            children=dcc.Markdown(dedent(description)),
-                            className='six columns'
+                        id='graph-description',
+                        children=dcc.Markdown(dedent(description)),
+                        className='six columns'
                     ),
                     html.Div(
-                            dcc.Graph(
-                                    id='optimal_value_function',
-                                    figure=bj.plot_value_function(sv)
-                            ),
-                            className=f'three columns',
+                        dcc.Graph(
+                            id='optimal_value_function',
+                            figure=bj.plot_value_function(sv)
+                        ),
+                        className=f'three columns',
                     ),
                     html.Div(
-                            dcc.Graph(
-                                    id='optimal_policy',
-                                    figure=bj.plot_policy(policy)
-                            ),
-                            className=f'three columns',
+                        dcc.Graph(
+                            id='optimal_policy',
+                            figure=bj.plot_policy(policy)
+                        ),
+                        className=f'three columns',
                     ),
                     html.Div(
-                            dcc.Graph(
-                                    id='samples0',
-                                    figure=bj.plot_n_visits(n_visits[0], 0)
-                            ),
-                            className=f'three columns',
+                        dcc.Graph(
+                            id='samples0',
+                            figure=bj.plot_n_visits(n_visits[0], 0)
+                        ),
+                        className=f'three columns',
                     ),
                     html.Div(
-                            dcc.Graph(
-                                    id='samples1',
-                                    figure=bj.plot_n_visits(n_visits[1], 1)
-                            ),
-                            className=f'three columns',
+                        dcc.Graph(
+                            id='samples1',
+                            figure=bj.plot_n_visits(n_visits[1], 1)
+                        ),
+                        className=f'three columns',
                     )
                 ]
 
@@ -1183,10 +1204,10 @@ def RL(clicks, button_state, section,
 
         fig = ttt.plot_boards(states, q, pi, n)
         return html.Div(
-                dcc.Graph(
-                        id='values',
-                        figure=fig
-                ),
+            dcc.Graph(
+                id='values',
+                figure=fig
+            ),
         )
 
     elif section == 'Random Walk':
@@ -1239,32 +1260,32 @@ def RL(clicks, button_state, section,
 
             return [
                 html.Div(
-                        dcc.Graph(
-                                id='values_mc',
-                                figure=fig1,
-                        ),
-                        className=f'three columns',
+                    dcc.Graph(
+                        id='values_mc',
+                        figure=fig1,
+                    ),
+                    className=f'three columns',
                 ),
                 html.Div(
-                        dcc.Graph(
-                                id='values_td',
-                                figure=fig2,
-                        ),
-                        className=f'three columns',
+                    dcc.Graph(
+                        id='values_td',
+                        figure=fig2,
+                    ),
+                    className=f'three columns',
                 ),
                 html.Div(
-                        dcc.Graph(
-                                id='rmse',
-                                figure=fig3,
-                        ),
-                        className=f'three columns',
+                    dcc.Graph(
+                        id='rmse',
+                        figure=fig3,
+                    ),
+                    className=f'three columns',
                 ),
                 html.Div(
-                        dcc.Graph(
-                                id='rmse_batch',
-                                figure=fig4,
-                        ),
-                        className=f'three columns',
+                    dcc.Graph(
+                        id='rmse_batch',
+                        figure=fig4,
+                    ),
+                    className=f'three columns',
                 ),
             ]
 
@@ -1300,11 +1321,11 @@ def RL(clicks, button_state, section,
 
             return [
                 html.Div(
-                        dcc.Graph(
-                                id='values',
-                                figure=fig3,
-                        ),
-                        className=f'six columns',
+                    dcc.Graph(
+                        id='values',
+                        figure=fig3,
+                    ),
+                    className=f'six columns',
                 ),
             ]
 
@@ -1323,26 +1344,26 @@ def RL(clicks, button_state, section,
         fig3 = wg.plot_learning_rate(timestamps, title='Stochastic Wind')
         return [
             html.Div(
-                    dcc.Graph(
-                            id='learning_rate',
-                            figure=fig1,
-                    ),
-                    className=f'four columns',
+                dcc.Graph(
+                    id='learning_rate',
+                    figure=fig1,
+                ),
+                className=f'four columns',
 
             ),
             html.Div(
-                    dcc.Graph(
-                            id='learning_rate_king_moves',
-                            figure=fig2,
-                    ),
-                    className=f'four columns',
+                dcc.Graph(
+                    id='learning_rate_king_moves',
+                    figure=fig2,
+                ),
+                className=f'four columns',
             ),
             html.Div(
-                    dcc.Graph(
-                            id='learning_rate_stochastic_wind',
-                            figure=fig3,
-                    ),
-                    className=f'four columns',
+                dcc.Graph(
+                    id='learning_rate_stochastic_wind',
+                    figure=fig3,
+                ),
+                className=f'four columns',
             ),
         ]
 
@@ -1350,7 +1371,8 @@ def RL(clicks, button_state, section,
         cliff_rewards = {(i, -1): -100 for i in range(1, 11)}
         cw = CliffWalking(width=12, height=4, other_rewards=cliff_rewards)
 
-        algos = ['sarsa', 'q_learning', 'expected_sarsa', 'double_q_learning', 'n_step_sarsa', 'n_step_sarsa_off_policy'] #  'n_step_q_sigma', 'n_step_tree_backup'
+        algos = ['sarsa', 'q_learning', 'expected_sarsa', 'double_q_learning', 'n_step_sarsa',
+                 'n_step_sarsa_off_policy']  # 'n_step_q_sigma', 'n_step_tree_backup'
         rewards = dict(zip(algos, [np.zeros((simulations, n_iter)) for _ in range(len(algos))]))
 
         for algo in tqdm(algos):
@@ -1382,10 +1404,10 @@ def RL(clicks, button_state, section,
 
         return [
             html.Div(
-                    dcc.Graph(
-                            id='rewards',
-                            figure=fig1,
-                    ),
+                dcc.Graph(
+                    id='rewards',
+                    figure=fig1,
+                ),
             ),
             # html.Div(
             #         dcc.Graph(
@@ -1426,7 +1448,7 @@ def RL(clicks, button_state, section,
             for i, n in tqdm(enumerate((0, 5, 50))):
                 episodes = ray.get([
                     dm.q_planning.remote(dm, planning_steps=planning_steps, n_episodes=n_iter, seed=n,
-                ) for _ in range(simulations)])
+                                         ) for _ in range(simulations)])
                 episode_length[n] = np.mean(np.asarray(episodes), axis=0)
 
             fig = dm.plot_learning_curves(episode_length)
@@ -1595,41 +1617,55 @@ def RL(clicks, button_state, section,
 
             for algo in tqdm(updates_until_optimal.keys()):
 
-                for dim in range(50, 6001, 50):
+                if algo == 'dyna_q':
+                    continue
+
+                for dim in range(20, 6001, 50):
 
                     # generate a maze
-                    grid = recursive_backtracker(width=dim, height=dim, seed=dim)
-                    blocks = np.argwhere(grid == 0)
-                    free_space = np.argwhere(grid == 1)
+                    grid = recursive_backtracker(width=dim, height=dim, seed=dim).astype(int)
+                    blocks = [tuple(block) for block in np.argwhere(grid == 1)]
+                    free_space = np.argwhere(grid == 0)
 
                     # randomly determine start and goal state for now (use heuristic and distance measure)
                     start_state = goal_state = tuple(free_space[np.random.randint(0, free_space.shape[0] - 1)])
                     while goal_state == start_state:
                         goal_state = tuple(free_space[np.random.randint(0, free_space.shape[0] - 1)])
 
-                    dm = DynaMaze(width=dim, height=dim, default_reward=0, other_rewards={goal_state: 1},
+                    other_rewards = {block: -5 for block in blocks}
+                    other_rewards[goal_state] = dim ** 2
+                    dm = DynaMaze(width=dim, height=dim, default_reward=-1, other_rewards=other_rewards,
                                   start_state=start_state, goal=goal_state, blocks=blocks)
-
+                    dm.grid[start_state] = -1
+                    dm.grid[goal_state] = 3
+                    print(dm.grid)
                     # solve the maze
-                    if algo == 'dyna_q':
+                    if algo == 'prioritized_sweeping':
+                        theta = 0.999
+                        planning_steps = 5
+                        step_size = 0.5
+
+                        # num_steps = ray.get([dm.prioritized_sweeping.remote(
+                        #     dm, planning_steps=planning_steps, n_episodes=10, alpha=step_size, theta=theta,
+                        #     seed=seed
+                        # ) for seed in range(simulations)])
+                        num_steps = [dm.prioritized_sweeping(
+                            planning_steps=planning_steps, n_episodes=10, alpha=step_size, theta=theta,
+                            seed=seed, verbose=True,
+                        ) for seed in range(simulations)]
+
+                    elif algo == 'dyna_q':
                         planning_steps = 5
                         step_size = 0.5
 
                         num_steps = ray.get([dm.q_planning.remote(
                             dm, planning_steps=planning_steps, n_episodes=100000000, alpha=step_size, seed=seed,
                         ) for seed in range(simulations)])
-                    elif algoo == 'prioritized_sweeping':
-                        theta = 0.0001
-                        planning_steps = 5
-                        step_size = 0.5
-
-                        num_steps = ray.get([dm.prioritized_sweeping.remote(
-                            dm, planning_steps=planning_steps, n_episodes=100000000, alpha=step_size, theta=theta,
-                            seed=seed
-                        ) for seed in range(simulations)])
 
                     updates_until_optimal[algo][dim] = np.mean(np.asarray(num_steps))
+                    print(updates_until_optimal)
 
+            print(updates_until_optimal)
             fig = dm.plot_convergence_speed(updates_until_optimal)
             return [
                 html.Div(
