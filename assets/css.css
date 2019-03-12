@@ -34,3 +34,10 @@
 .callout {
     float: right;
 }
+
+.page {
+    width: 100%;
+    font-family: Avenir;
+    margin-left: auto;
+    margin-right: auto;
+}

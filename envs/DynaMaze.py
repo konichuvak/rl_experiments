@@ -1,15 +1,17 @@
 import numpy as np
 import random
 import plotly.graph_objs as go
-import ray
-from envs.CliffWalking import GridWorld
-from typing import List
-from collections import defaultdict, OrderedDict
-from tqdm import tqdm
+from collections import defaultdict
 from heapdict import heapdict
+import ray
+import pickle
+import time
+from tqdm import tqdm
+from app import db
+from envs.GridWorld import GridWorldGenerator
 
 
-class DynaMaze(GridWorld):
+class DynaMaze(GridWorldGenerator):
 
     def __init__(self, *args, start_state: tuple, goal: tuple, **kwargs):
         super(DynaMaze, self).__init__(*args, **kwargs)
@@ -31,12 +33,12 @@ class DynaMaze(GridWorld):
         if x < 0 or y < 0 or x >= self.width or y >= self.height:
             next_state = state
 
-        # check block conditions
-        if next_state in self.blocks:
-            next_state = state
-
         # obtain transition reward
         reward = self.rewards[next_state]
+
+        # check block conditions (retain negative reward for bumping into walls)
+        if next_state in self.blocks:
+            next_state = state
 
         return next_state, reward
 
@@ -53,7 +55,7 @@ class DynaMaze(GridWorld):
     @staticmethod
     def randmax(ndarray):
         """ a random tie-breaking max """
-        return np.max(np.random.random(ndarray.shape) * (ndarray == ndarray.max()))
+        return ndarray[np.argmax(np.random.random(ndarray.shape) * (ndarray == ndarray.max()))]
 
     @ray.remote
     def q_planning(self, planning_steps: int = 0, n_episodes: int = 50, alpha: float = 0.1, gamma: float = 0.95,
@@ -158,7 +160,7 @@ class DynaMaze(GridWorld):
             np.random.seed(seed)
 
         q_shape = [len(self.actions)] + list(self.grid.shape)
-        q_values = np.zeros(shape=q_shape)
+        q_values = np.random.rand(*q_shape)
         model = defaultdict(lambda: defaultdict(tuple))
         p_queue = heapdict()
         predecessors = defaultdict(set)  # to track all the states leading into a given state
@@ -168,21 +170,26 @@ class DynaMaze(GridWorld):
             grid = self.grid.copy()
 
         total_steps_per_episode = list()
-        for e in tqdm(range(n_episodes)):
+        for _ in tqdm(range(n_episodes)):
             total_steps = 0
+            time.sleep(3)
 
             state = self.start_state
             while state != self.goal:
+
+                db.hset('Prioritized Sweeping', 'Q-Values', pickle.dumps(q_values))
+                db.hset('Prioritized Sweeping', 'Grid', pickle.dumps(grid))
+                db.hset('Prioritized Sweeping', 'Priority', pickle.dumps(p_queue))
 
                 a = self.randargmax(q_values[:, state[0], state[1]])
                 a = self.epsilon_greedy(a, epsilon)
                 state_next, reward = self.state_transition(state, self.actions[a])
 
-                if verbose:
-                    print(grid.T)
-                    print('current state:', state)
-                    print('next action:', a)
-                    print('next action:', state_next)
+                # if verbose:
+                # print(grid.T)
+                # print('current state:', state)
+                # print('next action:', a)
+                # print('next action:', state_next)
 
                 model[state][a] = (reward, state_next)
                 # remember state-action pairs and associated rewards that led to the next state
@@ -211,7 +218,8 @@ class DynaMaze(GridWorld):
                     # deal with all the predecessors of the sample state
                     for state_prev, a_prev, reward_prev in predecessors[s]:
                         q_index = a_prev, state_prev[0], state_prev[1]
-                        priority = abs(reward_prev + gamma * self.randmax(q_values[:, s[0], s[1]]) - q_values[q_index])
+                        q_index_next = self.randargmax(q_values[:, s_next[0], s_next[1]]), s_next[0], s_next[1]
+                        priority = abs(reward_prev + gamma * q_values[q_index_next] - q_values[q_index])
                         if priority > theta:
                             if not p_queue.get((state_prev, a_prev)):
                                 p_queue[state_prev, a_prev] = 0
@@ -220,8 +228,8 @@ class DynaMaze(GridWorld):
                     total_steps += 1
 
                 if verbose:
-                    grid = self.grid.copy()
-                    grid[state] = 10
+                    grid[state] = 0
+                    grid[state_next] = 10
 
                 state = state_next
 

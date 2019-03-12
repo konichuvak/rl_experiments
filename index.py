@@ -3,7 +3,7 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 
 from app import app
-from apps import bandits, rl
+from apps import bandits, rl, training
 
 # TODO: add layout for tabular vs FA
 
@@ -18,6 +18,8 @@ index_page = html.Div([
     dcc.Link('bandits', href='/bandits'),
     html.Br(),
     dcc.Link('rl', href='/rl'),
+    html.Br(),
+    dcc.Link('training', href='/training'),
 ])
 
 
@@ -31,9 +33,10 @@ def display_page(pathname):
         return rl.layout
     elif pathname == '/bandits':
         return bandits.layout
+    elif pathname == '/training':
+        return training.layout
     else:
-        return index_page
-    # You could also return a 404 "URL not found" page here
+        return index_page  # You could also return a 404 "URL not found" page here
 
 
 if __name__ == '__main__':

@@ -1,41 +1,12 @@
 import numpy as np
-from typing import Dict, List
 import random
 import plotly.graph_objs as go
 import ray
 from tqdm import tqdm
-
-ROOK_ACTIONS = frozenset({(0, -1), (-1, 0), (0, 1), (1, 0)})
-
-
-class GridWorld(object):
-
-    def __init__(self, width: int, height: int, actions: List[tuple] = ROOK_ACTIONS,
-                 default_reward: float = -1,
-                 other_rewards: Dict[tuple, float] = None):
-        self.width = width
-        self.height = height
-        self.grid = np.ones((width, height))
-        self.rewards = self._generate_rewards(default_reward, other_rewards)
-        self.actions = list(map(np.array, actions))
-
-    def _generate_rewards(self, default_reward, other_rewards):
-        """
-        Creates reward grid
-        :param default_reward:  default reward for transitioning to a given state in grid world
-        :param other_rewards:   dict with coordinates as keys and reward as values for other rewards
-        :return:
-        """
-        rewards = self.grid * default_reward
-        if other_rewards is None:
-            other_rewards = {}
-
-        for coord, r in other_rewards.items():
-            rewards[coord] = r
-        return rewards
+from envs.GridWorld import GridWorldGenerator
 
 
-class CliffWalking(GridWorld):
+class CliffWalking(GridWorldGenerator):
 
     def __init__(self, *args, **kwargs):
         super(CliffWalking, self).__init__(*args, **kwargs)

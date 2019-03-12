@@ -1,15 +1,63 @@
 import numpy as np
 import plotly.graph_objs as go
 from plotly import tools
+from typing import List, Tuple, Dict
+
+ROOK_ACTIONS = frozenset({(0, -1), (-1, 0), (0, 1), (1, 0)})
 
 
-class GridWorld:
+class GridWorldGenerator(object):
+
+    def __init__(self, width: int, height: int, actions: List[tuple] = ROOK_ACTIONS,
+                 default_reward: float = -1,
+                 other_rewards: Dict[tuple, float] = None,
+                 blocks: Tuple[Tuple[int, int]] = None,
+                 ):
+        self.width = width
+        self.height = height
+        self.grid = np.zeros((width, height))
+        if blocks:
+            for block in blocks:
+                self.grid[block] = 2
+        self.blocks = blocks
+        self.default_reward = default_reward
+        self.non_default_rewards = other_rewards
+        self.rewards = self._generate_rewards(default_reward, other_rewards)
+        self.actions = list(map(np.array, actions))
+
+    def _generate_rewards(self, default_reward, other_rewards):
+        """
+        Creates reward grid
+        :param default_reward:  default reward for transitioning to a given state in grid world
+        :param other_rewards:   dict with coordinates as keys and reward as values for other rewards
+        :return:
+        """
+        rewards = np.ones((self.width, self.height)) * default_reward
+        if other_rewards is None:
+            other_rewards = {}
+
+        for coord, r in other_rewards.items():
+            rewards[coord] = r
+        return rewards
+
+    @staticmethod
+    def rescale_grid(grid, factor: int):
+        scaled_grid = GridWorld(
+            width=grid.width * factor,
+            height=grid.height * factor,
+            default_reward=grid.default_reward
+            # TODO: handle non-default rewards and blocks
+        )
+        return scaled_grid
+
+
+class GridWorld(GridWorldGenerator):
     """ Simple GridWorld as described in Sutton & Barto (2019, Example 4.1) """
 
-    def __init__(self, grid_dim, gamma):
+    def __init__(self, *args, grid_dim: int, gamma: float, **kwargs):
+        super(GridWorld, self).__init__(*args, **kwargs)
         self.grid_dim = grid_dim
         self.gamma = gamma
-        self.actions = list(map(np.asarray, [[0, -1], [-1, 0], [0, 1], [1, 0]]))  # left, up, right, down
         self.prob = 1 / len(self.actions)
 
     def state_transition(self, state, action):
@@ -26,7 +74,7 @@ class GridWorld:
         if x < 0 or y < 0 or x >= self.grid_dim or y >= self.grid_dim:
             next_state = tuple(state)
 
-        reward = -1
+        reward = self.rewards[next_state]
         return next_state, reward
 
     def is_terminal(self, x, y):
