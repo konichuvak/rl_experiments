@@ -46,18 +46,29 @@ layout = html.Div([
                 className='header'
             ),
             html.Div(
-                id='training_div',
                 children=[
-                    html.Div(
-                        id='training_live',
+                    dcc.Graph(
+                        id='q-values',
                     ),
-                    dcc.Interval(id='training', interval=1000 * 3, n_intervals=0),
                 ],
-                style={
-                    'textAlign' : 'center',
-                    'fontFamily': 'Avenir',
-                },
-                className='row',
+                className='four columns',
+            ),
+            html.Div(
+                children=[
+                    dcc.Graph(
+                        id='grid',
+                    ),
+                    dcc.Interval(id='grid_interval', interval=1000 * 3, n_intervals=0),
+                ],
+                className='four columns',
+            ),
+            html.Div(
+                children=[
+                    dcc.Graph(
+                        id='priority',
+                    ),
+                ],
+                className='four columns',
             ),
             html.Br(),
             dcc.Link('To RL', href='/rl'),
@@ -72,9 +83,13 @@ layout = html.Div([
 
 
 @app.callback(
-    Output('training_live', 'children'),
     [
-        Input('training', 'n_intervals')
+        Output('grid', 'figure'),
+        Output('q-values', 'figure'),
+        Output('priority', 'figure'),
+    ],
+    [
+        Input('grid_interval', 'n_intervals')
     ]
 )
 def train(n_intervals):
@@ -126,27 +141,4 @@ def train(n_intervals):
     )
     fig3 = {'data': graph3, 'layout': layout3}
 
-    return [
-        html.Div(
-            [
-                html.Div(
-                    dcc.Graph(
-                        figure=fig1
-                    ),
-                    className='four columns'
-                ),
-                html.Div(
-                    dcc.Graph(
-                        figure=fig2
-                    ),
-                    className='four columns'
-                ),
-                html.Div(
-                    dcc.Graph(
-                        figure=fig3
-                    ),
-                    className='four columns'
-                )
-            ]
-        )
-    ]
+    return [fig1, fig2, fig3]

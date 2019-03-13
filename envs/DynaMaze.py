@@ -50,12 +50,8 @@ class DynaMaze(GridWorldGenerator):
     @staticmethod
     def randargmax(ndarray):
         """ a random tie-breaking argmax """
-        return np.argmax(np.random.random(ndarray.shape) * (ndarray == ndarray.max()))
-
-    @staticmethod
-    def randmax(ndarray):
-        """ a random tie-breaking max """
-        return ndarray[np.argmax(np.random.random(ndarray.shape) * (ndarray == ndarray.max()))]
+        return np.random.choice(np.flatnonzero(ndarray == ndarray.max()))
+        # return np.argmax(np.random.random(ndarray.shape) * (ndarray == ndarray.max()))
 
     @ray.remote
     def q_planning(self, planning_steps: int = 0, n_episodes: int = 50, alpha: float = 0.1, gamma: float = 0.95,
@@ -161,7 +157,7 @@ class DynaMaze(GridWorldGenerator):
 
         q_shape = [len(self.actions)] + list(self.grid.shape)
         q_values = np.random.rand(*q_shape)
-        model = defaultdict(lambda: defaultdict(tuple))
+        model = defaultdict(tuple)
         p_queue = heapdict()
         predecessors = defaultdict(set)  # to track all the states leading into a given state
 
@@ -177,6 +173,7 @@ class DynaMaze(GridWorldGenerator):
             state = self.start_state
             while state != self.goal:
 
+                # training board
                 db.hset('Prioritized Sweeping', 'Q-Values', pickle.dumps(q_values))
                 db.hset('Prioritized Sweeping', 'Grid', pickle.dumps(grid))
                 db.hset('Prioritized Sweeping', 'Priority', pickle.dumps(p_queue))
@@ -191,40 +188,35 @@ class DynaMaze(GridWorldGenerator):
                 # print('next action:', a)
                 # print('next action:', state_next)
 
-                model[state][a] = (reward, state_next)
+                model[state, a] = reward, state_next
                 # remember state-action pairs and associated rewards that led to the next state
                 predecessors[state_next].add((state, a, reward))
 
                 q_index = a, state[0], state[1]
                 q_index_next = self.randargmax(q_values[:, state_next[0], state_next[1]]), state_next[0], state_next[1]
-                priority = abs(reward + gamma * (q_values[q_index_next]) - q_values[q_index])
+                priority = abs(reward + gamma * q_values[q_index_next] - q_values[q_index])
                 if priority > theta:
-                    if not p_queue.get((state, a)):
-                        p_queue[state, a] = 0
                     # note that python's native heapq works for min elements only
-                    p_queue[state, a] = min(p_queue[state, a], priority * -1)
+                    p_queue[state, a] = min(p_queue.get((state, a), 0), priority * -1)
 
                 for n in range(planning_steps):
                     if not p_queue:
                         break
 
                     s, a = p_queue.popitem()[0]
-                    reward, s_next = model[s][a]
+                    reward, s_next = model[s, a]
 
                     q_index = a, s[0], s[1]
                     q_index_next = self.randargmax(q_values[:, s_next[0], s_next[1]]), s_next[0], s_next[1]
                     q_values[q_index] += alpha * (reward + gamma * q_values[q_index_next] - q_values[q_index])
 
-                    # deal with all the predecessors of the sample state
+                    # compute priorities of predecessors of the sample state
+                    q_index = self.randargmax(q_values[:, s[0], s[1]]), s[0], s[1]
                     for state_prev, a_prev, reward_prev in predecessors[s]:
-                        q_index = a_prev, state_prev[0], state_prev[1]
-                        q_index_next = self.randargmax(q_values[:, s_next[0], s_next[1]]), s_next[0], s_next[1]
-                        priority = abs(reward_prev + gamma * q_values[q_index_next] - q_values[q_index])
+                        q_index_prev = a_prev, state_prev[0], state_prev[1]
+                        priority = abs(reward_prev + gamma * q_values[q_index] - q_values[q_index_prev])
                         if priority > theta:
-                            if not p_queue.get((state_prev, a_prev)):
-                                p_queue[state_prev, a_prev] = 0
-                            p_queue[state_prev, a_prev] = min(p_queue[state_prev, a_prev], priority * -1)
-
+                            p_queue[state_prev, a_prev] = min(p_queue.get((state_prev, a_prev), 0), priority * -1)
                     total_steps += 1
 
                 if verbose:

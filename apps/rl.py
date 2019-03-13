@@ -1607,23 +1607,23 @@ def RL(clicks, button_state, section,
                     while goal_state == start_state:
                         goal_state = tuple(free_space[np.random.randint(0, free_space.shape[0] - 1)])
 
-                    other_rewards = {block: -5 for block in blocks}
+                    other_rewards = {block: -10 for block in blocks}
                     other_rewards[goal_state] = dim ** 2
                     dm = DynaMaze(width=dim, height=dim, default_reward=-1, other_rewards=other_rewards,
                                   start_state=start_state, goal=goal_state, blocks=blocks)
-                    dm.grid[start_state] = -1
-                    dm.grid[goal_state] = 3
+                    dm.grid[start_state] = -5
+                    dm.grid[goal_state] = 5
 
                     # solve the maze
                     if algo == 'prioritized_sweeping':
                         theta = 0.0001
 
                         # num_steps = ray.get([dm.prioritized_sweeping.remote(
-                        #     dm, planning_steps=planning_steps, n_episodes=1, alpha=step_size, theta=theta,
+                        #     dm, planning_steps=planning_steps, n_episodes=10, alpha=step_size, theta=theta,
                         #     seed=seed, verbose=True
                         # ) for seed in range(simulations)])
                         num_steps = [dm.prioritized_sweeping(
-                            planning_steps=planning_steps, n_episodes=10, alpha=step_size, gamma=1, theta=theta,
+                            planning_steps=planning_steps, n_episodes=10, alpha=step_size, gamma=0.95, theta=theta,
                             seed=seed, verbose=True,
                         ) for seed in range(simulations)]
 
