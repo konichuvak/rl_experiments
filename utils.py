@@ -3,9 +3,15 @@ from threading import Thread
 import _pickle
 import sys
 import os
+import numpy as np
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
+def randargmax(array):
+    """ a random tie-breaking argmax for 1 dimensional array"""
+    return np.random.choice(np.flatnonzero(array == array.max()))
+    # return np.argmax(np.random.random(ndarray.shape) * (ndarray == ndarray.max()))
 
 class DevNull(object):
     def write(self, arg):

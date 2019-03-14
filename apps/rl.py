@@ -17,6 +17,8 @@ from envs.WindyGridworld import WindyGridworld
 from envs.CliffWalking import CliffWalking
 from envs.DynaMaze import DynaMaze
 
+from scripts.ExpectedVsSampleUpdates import ExpectedVsSampleUpdates
+
 import importlib
 from collections import OrderedDict
 import numpy as np
@@ -114,7 +116,12 @@ layout = html.Div([
                                                 style=tab_style,
                                                 selected_style=selected_style
                                             ),
-
+                                                dcc.Tab(
+                                                    label='Expected Vs Sample Updates',
+                                                    value='Expected Vs Sample Updates',
+                                                    style=tab_style,
+                                                    selected_style=selected_style
+                                                ),
                                         ],
                                     ),
                                 ],
@@ -547,6 +554,19 @@ layout = html.Div([
                         style={'display': 'none'},
                         className='one column',
                     ),
+                    html.Div(
+                        id='distribution_div',
+                        children=[
+                            html.Label('Successor Distribution:', style={'textAlign': 'center'}),
+                            dcc.Dropdown(
+                                id='distribution',
+                                options=[{'label': s, 'value': s} for s in ['exponential', 'uniform', 'normal']],
+                                value='uniform'
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='one column',
+                    ),
                 ],
                 className='row'
             ),
@@ -582,7 +602,8 @@ output_ids = sorted({
     'behavior_div', 'comparison_div', 'walk_length_div', 'feature_div', 'exploration_div', 'simulation_div', 'task_div',
     'policy_div', 'n_iter_div', 'prob_heads_div', 'goal_div', 'grid_size_div',
     'gamma_div', 'max_cars_div', 'max_move_cars_div', 'rental_rate_div', 'rental_credit_div', 'move_car_cost_div',
-    'maze_type_div', 'switch_time_div', 'step_limit_div', 'step_size_div', 'time_weight_div', 'planning_steps_div'
+    'maze_type_div', 'switch_time_div', 'step_limit_div', 'step_size_div', 'time_weight_div', 'planning_steps_div',
+    'distribution_div'
 })
 active_outputs = OrderedDict(zip(output_ids, (display[0] for _ in range(len(output_ids)))))
 outputs_components = [Output(output_id, 'style') for output_id in output_ids]
@@ -621,6 +642,9 @@ outputs_components = [Output(output_id, 'style') for output_id in output_ids]
         # Random Walk
         State('comparison', 'value'),
         State('walk_length', 'value'),
+
+        State('distribution', 'value'),
+
     ]
 )
 def show_hide(section, task, off_policy, maze_type,
@@ -630,6 +654,7 @@ def show_hide(section, task, off_policy, maze_type,
               exploration, n_iter, behavior,
               feature,
               comparison, walk_length,
+              distribution
               ):
     print(section)
     show = set()
@@ -676,6 +701,9 @@ def show_hide(section, task, off_policy, maze_type,
                     'planning_steps'}
         elif maze_type == 'Prioritized Sweeping':
             show = {'simulation', 'maze_type', 'step_size', 'planning_steps'}
+
+    elif section in {'Expected Vs Sample Updates'}:
+        show = {'simulation', 'distribution'}
 
     show = {f'{component}_div' for component in show}
 
@@ -844,7 +872,11 @@ def disable_enable_button(clicked, state):
 )
 def description(section):
     classname = section.replace("\'", '').replace(' ', '')
-    class_ = getattr(importlib.import_module(f"envs.{classname}"), classname)
+    try:
+        class_ = getattr(importlib.import_module(f"envs.{classname}"), classname)
+    except ImportError:
+        class_ = getattr(importlib.import_module(f"scripts.{classname}"), classname)
+
     description = " "
     try:
         description = getattr(class_, 'description')()
@@ -897,6 +929,8 @@ def description(section):
         State('time_weight', 'value'),
         State('switch_time', 'value'),
         State('planning_steps', 'value'),
+
+        State('distribution', 'value'),
     ],
 )
 def RL(clicks, button_state, section,
@@ -908,6 +942,7 @@ def RL(clicks, button_state, section,
        feature,
        comparison, walk_length,
        maze_type, step_size, step_limit, time_weight, switch_time, planning_steps,
+       distribution,
        ):
     print(clicks, button_state, section,
           in_place,
@@ -1649,3 +1684,25 @@ def RL(clicks, button_state, section,
                     ),
                 ),
             ]
+
+    elif section == 'Expected Vs Sample Updates':
+
+            es = ExpectedVsSampleUpdates()
+
+            simulations = 100
+            error = dict()
+            for b in tqdm((2, 10, 100, 1000, 10000)):
+                rmse = np.asarray(ray.get([es.q_updates.remote(b, distribution) for _ in range(simulations)]))
+                error[b] = np.mean(rmse, axis=0)
+
+            return [
+                html.Div(
+                    dcc.Graph(
+                        id='expected-vs-sample-updates',
+                        figure=es.plot_rmse(error),
+                        className='six columns'
+                    ),
+                ),
+            ]
+
+

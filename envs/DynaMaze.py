@@ -9,6 +9,7 @@ import time
 from tqdm import tqdm
 from app import db
 from envs.GridWorld import GridWorldGenerator
+from utils import randargmax
 
 
 class DynaMaze(GridWorldGenerator):
@@ -47,12 +48,6 @@ class DynaMaze(GridWorldGenerator):
             action_index = random.randint(0, len(self.actions) - 1)
         return action_index
 
-    @staticmethod
-    def randargmax(ndarray):
-        """ a random tie-breaking argmax """
-        return np.random.choice(np.flatnonzero(ndarray == ndarray.max()))
-        # return np.argmax(np.random.random(ndarray.shape) * (ndarray == ndarray.max()))
-
     @ray.remote
     def q_planning(self, planning_steps: int = 0, n_episodes: int = 50, alpha: float = 0.1, gamma: float = 0.95,
                    epsilon: float = 0.1, verbose: bool = False, seed: int = None, step_limit: int = None,
@@ -87,7 +82,7 @@ class DynaMaze(GridWorldGenerator):
                 i += 1
                 time_steps += 1
 
-                a = self.randargmax(q_values[:, state[0], state[1]])
+                a = randargmax(q_values[:, state[0], state[1]])
                 a = self.epsilon_greedy(a, epsilon)
                 state_next, reward = self.state_transition(state, self.actions[a])
 
@@ -97,7 +92,7 @@ class DynaMaze(GridWorldGenerator):
                     print('next action:', a)
 
                 q_index = a, state[0], state[1]
-                q_index_next = self.randargmax(q_values[:, state_next[0], state_next[1]]), state_next[0], state_next[1]
+                q_index_next = randargmax(q_values[:, state_next[0], state_next[1]]), state_next[0], state_next[1]
                 q_values[q_index] += alpha * (reward + gamma * (q_values[q_index_next]) - q_values[q_index])
 
                 if dyna_q_plus | dyna_q_plus_plus:
@@ -115,7 +110,7 @@ class DynaMaze(GridWorldGenerator):
                         for action in range(len(self.actions)):
                             q_index, elapsed_timesteps = (action, s[0], s[1]), time_steps - tracker[s][action]
                             action_values[action] = q_values[q_index] + kappa * np.sqrt(elapsed_timesteps)
-                        a = self.randargmax(action_values)
+                        a = randargmax(action_values)
                     else:
                         a = random.choice(tuple(model[s].keys()))
                     reward, s_next = model[s][a]
@@ -125,7 +120,7 @@ class DynaMaze(GridWorldGenerator):
                         reward += kappa * np.sqrt(elapsed_timesteps)
 
                     q_index = a, s[0], s[1]
-                    q_index_next = self.randargmax(q_values[:, s_next[0], s_next[1]]), s_next[0], s_next[1]
+                    q_index_next = randargmax(q_values[:, s_next[0], s_next[1]]), s_next[0], s_next[1]
                     q_values[q_index] += alpha * (reward + gamma * (q_values[q_index_next]) - q_values[q_index])
 
                 if verbose:
@@ -178,7 +173,7 @@ class DynaMaze(GridWorldGenerator):
                 db.hset('Prioritized Sweeping', 'Grid', pickle.dumps(grid))
                 db.hset('Prioritized Sweeping', 'Priority', pickle.dumps(p_queue))
 
-                a = self.randargmax(q_values[:, state[0], state[1]])
+                a = randargmax(q_values[:, state[0], state[1]])
                 a = self.epsilon_greedy(a, epsilon)
                 state_next, reward = self.state_transition(state, self.actions[a])
 
@@ -193,7 +188,7 @@ class DynaMaze(GridWorldGenerator):
                 predecessors[state_next].add((state, a, reward))
 
                 q_index = a, state[0], state[1]
-                q_index_next = self.randargmax(q_values[:, state_next[0], state_next[1]]), state_next[0], state_next[1]
+                q_index_next = randargmax(q_values[:, state_next[0], state_next[1]]), state_next[0], state_next[1]
                 priority = abs(reward + gamma * q_values[q_index_next] - q_values[q_index])
                 if priority > theta:
                     # note that python's native heapq works for min elements only
@@ -207,11 +202,11 @@ class DynaMaze(GridWorldGenerator):
                     reward, s_next = model[s, a]
 
                     q_index = a, s[0], s[1]
-                    q_index_next = self.randargmax(q_values[:, s_next[0], s_next[1]]), s_next[0], s_next[1]
+                    q_index_next = randargmax(q_values[:, s_next[0], s_next[1]]), s_next[0], s_next[1]
                     q_values[q_index] += alpha * (reward + gamma * q_values[q_index_next] - q_values[q_index])
 
                     # compute priorities of predecessors of the sample state
-                    q_index = self.randargmax(q_values[:, s[0], s[1]]), s[0], s[1]
+                    q_index = randargmax(q_values[:, s[0], s[1]]), s[0], s[1]
                     for state_prev, a_prev, reward_prev in predecessors[s]:
                         q_index_prev = a_prev, state_prev[0], state_prev[1]
                         priority = abs(reward_prev + gamma * q_values[q_index] - q_values[q_index_prev])
