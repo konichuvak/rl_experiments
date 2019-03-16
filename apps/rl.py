@@ -9,7 +9,7 @@ from assets.style import *
 from envs.GridWorld import GridWorld
 # from CarRental import CarRental
 from envs.GamblersRuin import GamblersRuin
-# from MarioVsBowser import MarioVsBowser
+from envs.MarioVsBowser import MarioVsBowser
 from envs.Blackjack import Blackjack
 from envs.TicTacToe import TicTacToe
 from envs.RandomWalk import RandomWalk
@@ -74,12 +74,12 @@ layout = html.Div([
                                                 style=tab_style,
                                                 selected_style=selected_style
                                             ),
-                                            # dcc.Tab(
-                                            #     label="Mario VS Bowser",
-                                            #     value="Mario VS Bowser",
-                                            #     style=tab_style,
-                                            #     selected_style=selected_style
-                                            # ),
+                                            dcc.Tab(
+                                                label="Mario Vs Bowser",
+                                                value="Mario Vs Bowser",
+                                                style=tab_style,
+                                                selected_style=selected_style
+                                            ),
                                             dcc.Tab(
                                                 label="Blackjack",
                                                 value="Blackjack",
@@ -719,7 +719,7 @@ def show_hide(section, task, off_policy, maze_type,
     [Input('section', 'value')],
 )
 def in_place_div(section):
-    if section in ['Grid World', 'Car Rental', "Gambler's Ruin", 'Mario VS Bowser']:
+    if section in ['Grid World', 'Car Rental', "Gambler's Ruin", 'Mario Vs Bowser']:
         return {'display': 'block'}
     else:
         return {'display': 'none'}
@@ -1001,7 +1001,7 @@ def RL(clicks, button_state, section,
             )
         ]
 
-    elif section == "Mario VS Bowser":
+    elif section == "Mario Vs Bowser":
         mb = MarioVsBowser()
         sv, p = mb.policy_evaluation()
         sv_star, p_star = mb.value_iteration()
@@ -1028,26 +1028,27 @@ def RL(clicks, button_state, section,
                 The estimates for states with a usable ace are less certain and less regular because these states are less common.
                 Try various values for number of episodes to observe the convergence for yourself.
                 """
+                sv, n_samples = bj.mc_prediction(n_iter)
                 return [
-                    html.Div(
-                        id='graph-description',
-                        children=dcc.Markdown(dedent(description)),
-                        className='six columns'
-                    ),
                     html.Div(
                         dcc.Graph(
                             id='value_estimate',
-                            figure=bj.plot_value_function(bj.mc_prediction(n_iter), n_iter)
+                            figure=bj.plot_value_function(sv, n_iter)
                         ),
                         className=f'six columns',
                     ),
-                    # html.Div(
-                    #         dcc.Graph(
-                    #                 id='better_value_estimate',
-                    #                 figure=bj.plot_value_function(bj.mc_prediction(500000), 500000)
-                    #         ),
-                    #         className=f'six columns',
-                    # )
+                    html.Div(
+                        dcc.Graph(
+                            id='visits',
+                            figure=bj.plot_n_visits(n_samples)
+                        ),
+                        className=f'six columns',
+                    ),
+                    html.Div(
+                        id='graph-description',
+                        children=dcc.Markdown(dedent(description)),
+                        className='one row'
+                    ),
                 ]
 
             else:
