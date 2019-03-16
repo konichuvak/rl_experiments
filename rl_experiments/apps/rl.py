@@ -4,20 +4,20 @@ from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
 from textwrap import dedent
-from assets.style import *
+from rl_experiments.assets.style import *
 
-from envs.GridWorld import GridWorld
+from rl_experiments.envs.GridWorld import GridWorld
 # from CarRental import CarRental
-from envs.GamblersRuin import GamblersRuin
-from envs.MarioVsBowser import MarioVsBowser
-from envs.Blackjack import Blackjack
-from envs.TicTacToe import TicTacToe
-from envs.RandomWalk import RandomWalk
-from envs.WindyGridworld import WindyGridworld
-from envs.CliffWalking import CliffWalking
-from envs.DynaMaze import DynaMaze
+from rl_experiments.envs.GamblersRuin import GamblersRuin
+from rl_experiments.envs.MarioVsBowser import MarioVsBowser
+from rl_experiments.envs.Blackjack import Blackjack
+from rl_experiments.envs.TicTacToe import TicTacToe
+from rl_experiments.envs.RandomWalk import RandomWalk
+from rl_experiments.envs.WindyGridworld import WindyGridworld
+from rl_experiments.envs.CliffWalking import CliffWalking
+from rl_experiments.envs.DynaMaze import DynaMaze
 
-from scripts.ExpectedVsSampleUpdates import ExpectedVsSampleUpdates
+from rl_experiments.scripts.ExpectedVsSampleUpdates import ExpectedVsSampleUpdates
 
 import importlib
 from collections import OrderedDict
@@ -1622,7 +1622,7 @@ def RL(clicks, button_state, section,
 
         elif maze_type == 'Prioritized Sweeping':
 
-            from envs.maze_gen import recursive_backtracker
+            from rl_experiments.envs.maze_gen import recursive_backtracker
 
             updates_until_optimal = {'dyna_q': dict(), 'prioritized_sweeping': dict()}
 

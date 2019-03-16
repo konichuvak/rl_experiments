@@ -4,7 +4,7 @@ import plotly.graph_objs as go
 from plotly import tools
 from tqdm import tqdm
 import random
-from utils import NoPrint
+from rl_experiments.utils import NoPrint
 
 np.random.seed(1)
 random.seed(1)
@@ -155,7 +155,7 @@ class Blackjack:
 
         return rollout
 
-    def mc_prediction(self, n_episodes, first_visit: bool = True) -> np.ndarray:
+    def mc_prediction(self, n_episodes, first_visit: bool = True):
         """
         :param n_episodes:      number of episodes to sample
         :param policy:          numpy matrix of actions corresponding to each state
@@ -163,7 +163,7 @@ class Blackjack:
         :return:                estimated state values associated with the policy
         """
         state_values = np.zeros((2, 10, 10))
-        self.n_samples_returns = state_values.copy()
+        n_samples_returns = state_values.copy()
 
         for _ in tqdm(range(1, n_episodes + 1)):
             with NoPrint():
@@ -182,13 +182,13 @@ class Blackjack:
                 for s in reversed(states):
                     state = (s[0], s[1] - self.offset, s[2] - 1)
                     g = self.gamma * g + rewards.__next__()
-                    n = self.n_samples_returns[state] = self.n_samples_returns[state] + 1
+                    n = n_samples_returns[state] = n_samples_returns[state] + 1
                     v = state_values[state]
                     state_values[state] = v + (g - v) / n
             else:
                 raise Exception('all visit MC is not implemented')
 
-        return state_values
+        return state_values, n_samples_returns
 
     def monte_carlo_es(self, n_episodes: int, first_visit: bool = True):
         q_values = np.zeros((2, 2, 10, 10))  # (useable ace, action_taken, player's 12-21, dealer's ace-10, )
@@ -518,7 +518,7 @@ class Blackjack:
         return fig
 
     @staticmethod
-    def plot_n_visits(n_visits, action):
+    def plot_n_visits(n_visits, action=None):
         fig = tools.make_subplots(2, 1,
                                   subplot_titles=['No Usable Ace', 'With Usable Ace'],
                                   vertical_spacing=0.2
@@ -527,7 +527,7 @@ class Blackjack:
             i['font'] = dict(size=13)
         layout = dict(
             height=800,
-            title=f'Sampled States with action {action} taken',
+            title=f'Sampled States with action {action} taken' if action is not None else 'Sampled States',
             showlegend=False,
         )
         fig['layout'].update(layout)

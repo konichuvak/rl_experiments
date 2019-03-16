@@ -5,7 +5,6 @@ import random
 import time
 
 import numpy as np
-import matplotlib.pyplot as pyplot
 
 
 def odd_maze(width=81, height=51, complexity=.75, density=.75):
@@ -106,7 +105,6 @@ def recursive_backtracker(width=20, height=20, seed=None):
 
 
 def create_random_maze(width, height):
-    pyplot.figure(figsize=(10, 5))
     # maze1 = odd_maze(width, height)
     # maze1 = odd_maze(width, height, density=0.1) # for large open areas
     maze1 = recursive_backtracker(width, height)

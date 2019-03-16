@@ -3,7 +3,7 @@ import random
 import plotly.graph_objs as go
 import ray
 from tqdm import tqdm
-from envs.GridWorld import GridWorldGenerator
+from rl_experiments.envs.GridWorld import GridWorldGenerator
 
 
 class CliffWalking(GridWorldGenerator):

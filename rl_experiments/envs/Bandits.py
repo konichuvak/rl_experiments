@@ -2,7 +2,6 @@ import numpy as np
 import plotly.graph_objs as go
 from plotly import tools
 from random import random, sample
-from utils import cache
 import ray
 
 class Bandits:
