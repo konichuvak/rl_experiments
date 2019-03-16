@@ -7,9 +7,9 @@ import ray
 import pickle
 import time
 from tqdm import tqdm
-from app import db
-from envs.GridWorld import GridWorldGenerator
-from utils import randargmax
+from rl_experiments.app import db
+from rl_experiments.envs.GridWorld import GridWorldGenerator
+from rl_experiments.utils import randargmax
 
 
 class DynaMaze(GridWorldGenerator):

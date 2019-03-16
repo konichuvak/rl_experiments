@@ -2,8 +2,8 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 
-from app import app
-from apps import bandits, rl, training
+from rl_experiments.app import app
+from rl_experiments.apps import rl, training, bandits
 
 # TODO: add layout for tabular vs FA
 

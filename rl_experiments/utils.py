@@ -13,6 +13,7 @@ def randargmax(array):
     return np.random.choice(np.flatnonzero(array == array.max()))
     # return np.argmax(np.random.random(ndarray.shape) * (ndarray == ndarray.max()))
 
+
 class DevNull(object):
     def write(self, arg):
         pass

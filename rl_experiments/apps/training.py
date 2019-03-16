@@ -2,9 +2,9 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 
-from app import db
+from rl_experiments.app import db
 import plotly.graph_objs as go
-from assets.style import *
+from rl_experiments.assets.style import *
 import numpy as np
 import pickle
 
