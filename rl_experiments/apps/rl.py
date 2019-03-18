@@ -1,30 +1,28 @@
+import importlib
+from collections import OrderedDict, defaultdict
+from textwrap import dedent
+
 import dash_core_components as dcc
 import dash_html_components as html
+import numpy as np
+import ray
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
+from tqdm import tqdm
 
-from textwrap import dedent
 from rl_experiments.assets.style import *
-
-from rl_experiments.envs.GridWorld import GridWorld
-# from CarRental import CarRental
-from rl_experiments.envs.GamblersRuin import GamblersRuin
-from rl_experiments.envs.MarioVsBowser import MarioVsBowser
 from rl_experiments.envs.Blackjack import Blackjack
-from rl_experiments.envs.TicTacToe import TicTacToe
-from rl_experiments.envs.RandomWalk import RandomWalk
-from rl_experiments.envs.WindyGridworld import WindyGridworld
 from rl_experiments.envs.CliffWalking import CliffWalking
 from rl_experiments.envs.DynaMaze import DynaMaze
-
+# from CarRental import CarRental
+from rl_experiments.envs.GamblersRuin import GamblersRuin
+from rl_experiments.envs.GridWorld import GridWorld
+from rl_experiments.envs.MarioVsBowser import MarioVsBowser
+from rl_experiments.envs.RandomWalk import RandomWalk
+from rl_experiments.envs.TicTacToe import TicTacToe
+from rl_experiments.envs.WindyGridworld import WindyGridworld
 from rl_experiments.scripts.ExpectedVsSampleUpdates import ExpectedVsSampleUpdates
-
-import importlib
-from collections import OrderedDict
-import numpy as np
-
-from tqdm import tqdm
-import ray
+from rl_experiments.scripts.TrajectorySampling import TrajectorySampling
 
 ray.init(ignore_reinit_error=True)
 
@@ -110,18 +108,26 @@ layout = html.Div([
                                                 style=tab_style,
                                                 selected_style=selected_style
                                             ),
+
                                             dcc.Tab(
                                                 label='Dyna Maze',
                                                 value='Dyna Maze',
                                                 style=tab_style,
                                                 selected_style=selected_style
                                             ),
-                                                dcc.Tab(
-                                                    label='Expected Vs Sample Updates',
-                                                    value='Expected Vs Sample Updates',
-                                                    style=tab_style,
-                                                    selected_style=selected_style
-                                                ),
+                                            dcc.Tab(
+                                                label='Trajectory Sampling',
+                                                value='Trajectory Sampling',
+                                                style=tab_style,
+                                                selected_style=selected_style
+                                            ),
+                                            dcc.Tab(
+                                                label='Expected Vs Sample Updates',
+                                                value='Expected Vs Sample Updates',
+                                                style=tab_style,
+                                                selected_style=selected_style
+                                            ),
+
                                         ],
                                     ),
                                 ],
@@ -705,6 +711,9 @@ def show_hide(section, task, off_policy, maze_type,
     elif section in {'Expected Vs Sample Updates'}:
         show = {'simulation', 'distribution'}
 
+    elif section in {'Trajectory Sampling'}:
+        show = {'simulation', 'step_limit'}
+
     show = {f'{component}_div' for component in show}
 
     activations = active_outputs.copy()
@@ -786,26 +795,44 @@ def simulation(task, off_policy, comparison, maze_type, section):
             return 20
         elif maze_type == 'Shortcut Maze':
             return 5
+    elif section == 'Trajectory Sampling':
+        return 100
 
     return 100
 
 
 @app.callback(
+    Output('step_limit', 'value'),
     [
-        Output('switch_time', 'value'),
-        Output('step_limit', 'value'),
+        Input('section', 'value'),
+        Input('maze_type', 'value'),
     ],
+)
+def step_limit(section, maze_type):
+    if section == 'Dyna Maze':
+        if maze_type == 'Blocking Maze':
+            return 3000
+        elif maze_type == 'Shortcut Maze':
+            return 6000
+        else:
+            return 3000
+    elif section == 'Trajectory Sampling':
+        return 20000
+
+
+@app.callback(
+    Output('switch_time', 'value'),
     [
         Input('maze_type', 'value')
     ],
 )
 def switching_maze(maze_type):
     if maze_type == 'Blocking Maze':
-        return [1000, 3000]
+        return 1000
     elif maze_type == 'Shortcut Maze':
-        return [3000, 6000]
+        return 3000
     else:
-        return [1000, 3000]
+        return 1000
 
 
 @app.callback(
@@ -944,14 +971,6 @@ def RL(clicks, button_state, section,
        maze_type, step_size, step_limit, time_weight, switch_time, planning_steps,
        distribution,
        ):
-    print(clicks, button_state, section,
-          in_place,
-          grid_size, gamma,
-          prob_heads, goal,
-          off_policy, behavior,
-          maze_type, planning_steps, step_size, step_limit, time_weight, switch_time
-          )
-
     if not clicks:
         raise PreventUpdate
     if button_state == 'Stop':
@@ -1688,22 +1707,43 @@ def RL(clicks, button_state, section,
 
     elif section == 'Expected Vs Sample Updates':
 
-            es = ExpectedVsSampleUpdates()
+        es = ExpectedVsSampleUpdates()
 
-            simulations = 100
-            error = dict()
-            for b in tqdm((2, 10, 100, 1000, 10000)):
-                rmse = np.asarray(ray.get([es.q_updates.remote(b, distribution) for _ in range(simulations)]))
-                error[b] = np.mean(rmse, axis=0)
+        simulations = 100
+        error = dict()
+        for b in tqdm((2, 10, 100, 1000, 10000)):
+            rmse = np.asarray(ray.get([es.q_updates.remote(b, distribution) for _ in range(simulations)]))
+            error[b] = np.mean(rmse, axis=0)
 
-            return [
-                html.Div(
-                    dcc.Graph(
-                        id='expected-vs-sample-updates',
-                        figure=es.plot_rmse(error),
-                        className='six columns'
-                    ),
+        return [
+            html.Div(
+                dcc.Graph(
+                    id='expected-vs-sample-updates',
+                    figure=es.plot_rmse(error),
+                    className='six columns'
                 ),
-            ]
+            ),
+        ]
 
+    elif section == 'Trajectory Sampling':
 
+        branching = (1,)
+        methods = ('uniform', 'on_policy')
+        state_values = dict(zip(methods, (defaultdict(dict) for _ in methods)))
+
+        for b in tqdm(branching):
+            ts = TrajectorySampling(n_states=1000, b=b)
+            for method in tqdm(methods):
+                values = ray.get([getattr(ts, method).remote(ts, step_limit) for _ in range(simulations)])
+                state_values[method][b] = dict(
+                    zip(values[0].keys(), np.mean([np.array(list(v.values())) for v in values], axis=0)))
+
+        return [
+            html.Div(
+                dcc.Graph(
+                    id='on_policy-vs-uniform-sampling',
+                    figure=ts.plot(state_values),
+                    className='six columns'
+                ),
+            ),
+        ]
