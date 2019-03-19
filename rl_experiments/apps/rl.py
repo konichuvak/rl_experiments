@@ -18,7 +18,7 @@ from rl_experiments.envs.DynaMaze import DynaMaze
 from rl_experiments.envs.GamblersRuin import GamblersRuin
 from rl_experiments.envs.GridWorld import GridWorld
 from rl_experiments.envs.MarioVsBowser import MarioVsBowser
-from rl_experiments.envs.RandomWalk import RandomWalk
+from rl_experiments.envs.RandomWalk import RandomWalk, ValueFunction
 from rl_experiments.envs.TicTacToe import TicTacToe
 from rl_experiments.envs.WindyGridworld import WindyGridworld
 from rl_experiments.scripts.ExpectedVsSampleUpdates import ExpectedVsSampleUpdates
@@ -29,11 +29,11 @@ ray.init(ignore_reinit_error=True)
 layout = html.Div([
     html.Div(
         children=[
-
+    
             ################
             # HEADER
             ################
-
+    
             html.Div(
                 id='header',
                 children=[
@@ -108,7 +108,7 @@ layout = html.Div([
                                                 style=tab_style,
                                                 selected_style=selected_style
                                             ),
-
+    
                                             dcc.Tab(
                                                 label='Dyna Maze',
                                                 value='Dyna Maze',
@@ -157,15 +157,15 @@ layout = html.Div([
                 ],
                 className='header'
             ),
-
+    
             ################
             # BODY
             ################
-
+    
             html.Div(
                 id='static_components',
                 children=[
-
+    
                     #################
                     # DP
                     html.Div(
@@ -446,7 +446,7 @@ layout = html.Div([
                             dcc.Dropdown(
                                 id='comparison',
                                 options=[{'label': s, 'value': s} for s in
-                                         ['TD vs MC', 'n-steps']],
+                                         ['TD vs MC', 'n-steps', 'FA']],
                                 value='TD vs MC'
                             )
                         ],
@@ -576,7 +576,7 @@ layout = html.Div([
                 ],
                 className='row'
             ),
-
+    
             html.Div(
                 id='dynamic_components',
                 children=[
@@ -626,29 +626,29 @@ outputs_components = [Output(output_id, 'style') for output_id in output_ids]
     [
         # Shared across DP
         State('in_place', 'value'),
-
+    
         # Gridworld DP
         State('grid_size', 'value'),
         State('gamma', 'value'),
-
+    
         # Car Rentals
-
+    
         # Gambler's Ruin
         State('prob_heads', 'value'),
         State('goal', 'value'),
-
+    
         # Blackjack
         State('exploration', 'value'),
         State('n_iter', 'value'),
         State('behavior', 'value'),
-
+    
         # Windy Gridworld
         State('feature', 'value'),
-
+    
         # Random Walk
         State('comparison', 'value'),
         State('walk_length', 'value'),
-
+    
         State('distribution', 'value'),
 
     ]
@@ -665,8 +665,11 @@ def show_hide(section, task, off_policy, maze_type,
     print(section)
     show = set()
     if section in ["Random Walk"]:
-        show = {'comparison', 'walk_length', 'n_iter', 'simulation'}
-
+        if comparison in ['TD vs MC', 'n-iter']:
+            show = {'comparison', 'walk_length', 'n_iter', 'simulation'}
+        elif comparison in ['FA']:
+            show = {'comparison', 'walk_length', 'n_iter'}
+    
     elif section in ["Windy Gridworld"]:
         show = {'feature'}
 
@@ -758,6 +761,8 @@ def n_iter(task, off_policy, comparison, section):
             return 100
         elif comparison == 'n-steps':
             return 10
+        elif comparison == 'FA':
+            return 100000
     elif section == 'Cliff Walking':
         return 500
     elif section == 'Dyna Maze':
@@ -863,8 +868,12 @@ def time_weight(maze_type):
     [Input('comparison', 'value')],
 )
 def walk_length(comparison):
-    return 5 if comparison in ["TD vs MC"] else 19
-
+    length = {
+        "TD vs MC": 5,
+        'n-steps' : 19,
+        'FA'      : 1000
+    }
+    return length[comparison]
 
 @app.callback(
     Output('gamma', 'value'),
@@ -918,22 +927,24 @@ def description(section):
         Input('button', 'n_clicks')
     ],
     [
+        # TODO: dynamically get all stateful components from the layout
+        
         State('button', 'children'),
         State('section', 'value'),
-
+    
         # Shared across DP
         State('in_place', 'value'),
-
+    
         # Gridworld DP
         State('grid_size', 'value'),
         State('gamma', 'value'),
-
+    
         # Car Rentals
-
+    
         # Gambler's Ruin
         State('prob_heads', 'value'),
         State('goal', 'value'),
-
+    
         # Blackjack
         State('task', 'value'),
         State('exploration', 'value'),
@@ -941,14 +952,14 @@ def description(section):
         State('off_policy', 'value'),
         State('behavior', 'value'),
         State('simulation', 'value'),
-
+    
         # Windy Gridworld
         State('feature', 'value'),
-
+    
         # Random Walk
         State('comparison', 'value'),
         State('walk_length', 'value'),
-
+    
         # Maze Type
         State('maze_type', 'value'),
         State('step_size', 'value'),
@@ -956,7 +967,7 @@ def description(section):
         State('time_weight', 'value'),
         State('switch_time', 'value'),
         State('planning_steps', 'value'),
-
+    
         State('distribution', 'value'),
     ],
 )
@@ -977,7 +988,7 @@ def RL(clicks, button_state, section,
         raise PreventUpdate
 
     if section == 'Grid World':
-
+    
         gw = GridWorld(width=grid_size, height=grid_size, grid_dim=grid_size, gamma=gamma, default_reward=-1)
         sv = gw.gridworld_policy_iteration(in_place=bool(in_place), theta=1e-4)
         fig = gw.plot_grid_world(sv)
@@ -1036,7 +1047,7 @@ def RL(clicks, button_state, section,
         bj = Blackjack()
 
         if task == 'Evaluation':
-
+    
             if off_policy == 'False':
                 # TODO: add online plotting of the value function
 
@@ -1069,7 +1080,7 @@ def RL(clicks, button_state, section,
                         className='one row'
                     ),
                 ]
-
+    
             else:
                 true_value = -0.27726
                 ordinary_msr = np.zeros(n_iter)
@@ -1110,7 +1121,7 @@ def RL(clicks, button_state, section,
                         className='six columns'
                     )
                 ]
-
+    
             # TODO: add param to choose this incremental evaluation
             # else:
             #     q = bj.monte_carlo_off_policy_evalualtion(n_iter)
@@ -1126,7 +1137,7 @@ def RL(clicks, button_state, section,
             #     ]
 
         elif task == 'Control':
-
+    
             if off_policy == 'True':
                 description = """
                 The following graph shows an off-policy Monte Carlo control method, based on GPI and weighted importance sampling, for estimating Pi* and q*.
@@ -1162,15 +1173,15 @@ def RL(clicks, button_state, section,
                         className=f'three columns',
                     ),
                 ]
-
+    
             else:
-
+        
                 if exploration == 'Exploring Starts':
                     av, policy, n_visits = bj.monte_carlo_es(n_iter)
                 elif exploration == 'Epsilon Greedy':
                     av, policy, n_visits = bj.monte_carlo_epsilon_greedy(n_iter)
                 sv = np.max(av, axis=0)
-
+        
                 description = """
                 It is straightforward to apply Monte Carlo ES to blackjack.
                 Because the episodes are all simulated games, it is easy to arrange for exploring starts that include all possibilities.
@@ -1242,30 +1253,30 @@ def RL(clicks, button_state, section,
         )
 
     elif section == 'Random Walk':
-
+    
         if comparison == 'TD vs MC':
-
+        
             length = walk_length
             sims = simulations
-
+        
             rw = RandomWalk(length)
             mc_values = ray.get(rw.mc_prediction.remote(rw, n_iter))
             td_values = ray.get(rw.td_prediction.remote(rw, n_iter))
             fig1 = rw.plot_state_values(mc_values)
             fig2 = rw.plot_state_values(td_values)
-
+        
             # rmse comparison
             alphas = {
                 'TD': [0.15, 0.1, 0.05],
                 'MC': [0.01, 0.02, 0.03, 0.04],
             }
-
+        
             true_values = np.arange(-length + 1, length + 1, 2) / (length + 1.)
             errors = {
                 'MC': dict(),
                 'TD': dict()
             }
-
+        
             for n in ('TD', 'MC'):
                 for alpha in tqdm(alphas[n]):
                     state_values = [getattr(rw, f'{n.lower()}_prediction').remote(rw, n_iter, alpha) for _ in
@@ -1274,21 +1285,21 @@ def RL(clicks, button_state, section,
                     rmse = np.sum(np.sqrt(np.sum(np.power(state_values - true_values, 2), axis=2)), axis=0)
                     rmse /= sims * np.sqrt(length)
                     errors[n][alpha] = rmse
-
+        
             fig3 = rw.plot_rmse(errors, list(range(n_iter)))
-
+        
             # batch updates
             errors = {
                 'MC': np.zeros((sims, n_iter)),
                 'TD': np.zeros((sims, n_iter)),
             }
-
+        
             for algo in errors:
                 errors[algo] = np.asarray(ray.get([rw.batch_updates.remote(rw, algo) for _ in tqdm(range(sims))]))
                 errors[algo] = np.mean(errors[algo], axis=0)
-
+        
             fig4 = rw.plot_batch_rmse(errors)
-
+        
             return [
                 html.Div(
                     dcc.Graph(
@@ -1319,7 +1330,7 @@ def RL(clicks, button_state, section,
                     className=f'three columns',
                 ),
             ]
-
+    
         elif comparison == 'n-steps':
             """
             Exercise 7.3 Why do you think a larger random walk task (19 states instead of 5) was
@@ -1359,17 +1370,47 @@ def RL(clicks, button_state, section,
                     className=f'six columns',
                 ),
             ]
+    
+        elif comparison == 'FA':
+        
+            alpha = 2e-5
+            state_aggregation = 100
+        
+            rw = RandomWalk(walk_length, termination_reward=(-1, 1), state_aggregation=state_aggregation)
+        
+            value_function = ValueFunction(walk_length, state_aggregation)
+            state_visitation = rw.gradient_mc(value_function, n_iter, alpha)[1:walk_length]
+            print(state_visitation)
+            print(len(state_visitation))
+            state_visitation /= np.sum(state_visitation)
+            print(state_visitation)
+            print(len(state_visitation))
+        
+            state_values = [value_function.value(i) for i in range(1, walk_length)]
+            fig = rw.plot_state_values_fa(state_values, state_visitation)
+        
+            return [
+                html.Div(
+                    dcc.Graph(
+                        id='values',
+                        figure=fig,
+                    ),
+                    className=f'six columns',
+                ),
+            ]
+            
 
+    
     elif section == "Windy Gridworld":
-
+    
         wg = WindyGridworld(length=7, width=10, gamma=1, king_moves=False, stochastic_wind=False)
         action_values, timestamps, moves = wg.sarsa(n_episodes=170)
         fig1 = wg.plot_learning_rate(timestamps, title="Rook Moves")
-
+    
         wg = WindyGridworld(length=7, width=10, gamma=1, king_moves=True, stochastic_wind=False)
         action_values, timestamps, moves = wg.sarsa(n_episodes=170)
         fig2 = wg.plot_learning_rate(timestamps, title="King Moves")
-
+    
         wg = WindyGridworld(length=7, width=10, gamma=1, king_moves=True, stochastic_wind=True)
         action_values, timestamps, moves = wg.sarsa(n_episodes=170)
         fig3 = wg.plot_learning_rate(timestamps, title='Stochastic Wind')
@@ -1451,7 +1492,7 @@ def RL(clicks, button_state, section,
         ]
 
     elif section == 'Dyna Maze':
-
+    
         if maze_type == 'Dyna Maze':
             """
             ### Dyna Maze
@@ -1492,13 +1533,13 @@ def RL(clicks, button_state, section,
                     ),
                 ),
             ]
-
+    
         elif maze_type == 'Blocking Maze':
-
+        
             new_blocks = [(i, 3) for i in range(1, 9)]
-
+        
             cumulative_rewards = {'dyna_q': list(), 'dyna_q_plus': list(), 'dyna_q_plus_plus': list()}
-
+        
             for algo in tqdm(cumulative_rewards.keys()):
                 dyna_q_plus = algo == 'dyna_q_plus'
                 dyna_q_plus_plus = algo == 'dyna_q_plus_plus'
@@ -1525,9 +1566,9 @@ def RL(clicks, button_state, section,
                     per_step_rewards.append(rewards)
 
                 cumulative_rewards[algo] = np.mean(np.asarray(per_step_rewards), axis=0)
-
+        
             fig = dm.plot_rewards(cumulative_rewards)
-
+        
             description = """
             ### Example 8.2: Blocking Maze
 
@@ -1555,7 +1596,7 @@ def RL(clicks, button_state, section,
                     ),
                 ),
             ]
-
+    
         elif maze_type == 'Shortcut Maze':
             """
             ### Exercise 8.4 Shortcut Maze
@@ -1638,37 +1679,37 @@ def RL(clicks, button_state, section,
                     ),
                 ),
             ]
-
+    
         elif maze_type == 'Prioritized Sweeping':
-
+        
             from rl_experiments.envs.maze_gen import recursive_backtracker
-
+        
             updates_until_optimal = {'dyna_q': dict(), 'prioritized_sweeping': dict()}
-
+        
             for algo in tqdm(updates_until_optimal.keys()):
-
+            
                 if algo == 'dyna_q':
                     continue
-
+            
                 for dim in range(100, 6001, 50):
-
+                
                     # generate a maze
                     grid = recursive_backtracker(width=dim, height=dim, seed=dim).astype(int)
                     blocks = [tuple(block) for block in np.argwhere(grid == 1)]
                     free_space = np.argwhere(grid == 0)
-
+                
                     # randomly determine start and goal state for now (use heuristic and distance measure)
                     start_state = goal_state = tuple(free_space[np.random.randint(0, free_space.shape[0] - 1)])
                     while goal_state == start_state:
                         goal_state = tuple(free_space[np.random.randint(0, free_space.shape[0] - 1)])
-
+                
                     other_rewards = {block: -10 for block in blocks}
                     other_rewards[goal_state] = dim ** 2
                     dm = DynaMaze(width=dim, height=dim, default_reward=-1, other_rewards=other_rewards,
                                   start_state=start_state, goal=goal_state, blocks=blocks)
                     dm.grid[start_state] = -5
                     dm.grid[goal_state] = 5
-
+                
                     # solve the maze
                     if algo == 'prioritized_sweeping':
                         theta = 0.0001
@@ -1689,10 +1730,10 @@ def RL(clicks, button_state, section,
                         num_steps = ray.get([dm.q_planning.remote(
                             dm, planning_steps=planning_steps, n_episodes=100000000, alpha=step_size, seed=seed,
                         ) for seed in range(simulations)])
-
+                
                     updates_until_optimal[algo][dim] = np.mean(np.asarray(num_steps))
                     print(updates_until_optimal)
-
+        
             print(updates_until_optimal)
             fig = dm.plot_convergence_speed(updates_until_optimal)
             return [
@@ -1706,15 +1747,15 @@ def RL(clicks, button_state, section,
             ]
 
     elif section == 'Expected Vs Sample Updates':
-
+    
         es = ExpectedVsSampleUpdates()
-
+    
         simulations = 100
         error = dict()
         for b in tqdm((2, 10, 100, 1000, 10000)):
             rmse = np.asarray(ray.get([es.q_updates.remote(b, distribution) for _ in range(simulations)]))
             error[b] = np.mean(rmse, axis=0)
-
+    
         return [
             html.Div(
                 dcc.Graph(
@@ -1726,18 +1767,18 @@ def RL(clicks, button_state, section,
         ]
 
     elif section == 'Trajectory Sampling':
-
+    
         branching = (1,)
         methods = ('uniform', 'on_policy')
         state_values = dict(zip(methods, (defaultdict(dict) for _ in methods)))
-
+    
         for b in tqdm(branching):
             ts = TrajectorySampling(n_states=1000, b=b)
             for method in tqdm(methods):
                 values = ray.get([getattr(ts, method).remote(ts, step_limit) for _ in range(simulations)])
                 state_values[method][b] = dict(
                     zip(values[0].keys(), np.mean([np.array(list(v.values())) for v in values], axis=0)))
-
+    
         return [
             html.Div(
                 dcc.Graph(
