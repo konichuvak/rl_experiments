@@ -271,11 +271,12 @@ class RandomWalk:
             )
         )
         traces.append(
-            go.Histogram(
-                x=state_visitation,
+            go.Bar(
+                y=state_visitation,
                 marker=dict(
                     color='gainsboro'
                 ),
+                yaxis='y2',
                 name='State visitation distribution'
             )
         )
@@ -283,7 +284,19 @@ class RandomWalk:
         layout = dict(
             height=600,
             title='Value Estimation',
-            showlegend=True
+            showlegend=True,
+            yaxis=dict(
+                title='Value scale',
+                side='left',
+            ),
+            yaxis2=dict(
+                title='Distribution scale',
+                overlaying='y',
+                side='right',
+            ),
+            xaxis=dict(
+                title='State',
+            )
         )
         return {'data': traces, 'layout': layout}
     

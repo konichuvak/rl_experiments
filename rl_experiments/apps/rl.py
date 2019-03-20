@@ -1380,11 +1380,7 @@ def RL(clicks, button_state, section,
         
             value_function = ValueFunction(walk_length, state_aggregation)
             state_visitation = rw.gradient_mc(value_function, n_iter, alpha)[1:walk_length]
-            print(state_visitation)
-            print(len(state_visitation))
             state_visitation /= np.sum(state_visitation)
-            print(state_visitation)
-            print(len(state_visitation))
         
             state_values = [value_function.value(i) for i in range(1, walk_length)]
             fig = rw.plot_state_values_fa(state_values, state_visitation)
@@ -1399,8 +1395,6 @@ def RL(clicks, button_state, section,
                 ),
             ]
             
-
-    
     elif section == "Windy Gridworld":
     
         wg = WindyGridworld(length=7, width=10, gamma=1, king_moves=False, stochastic_wind=False)
