@@ -21,11 +21,7 @@ class ValueFunction:
     def update(self, delta, state):
         """ updates weights for a group of states """
         group_index = (state - 1) // self.group_size
-        try:
-            self.agg_values[group_index] += delta
-        except IndexError:
-            print(state)
-            exit(1)
+        self.agg_values[group_index] += delta
 
 
 class RandomWalk:
@@ -43,7 +39,7 @@ class RandomWalk:
         action = -1 if random.random() < 0.5 else 1
         if self.state_aggregation:
             step = action * np.random.randint(1, self.state_aggregation + 1)
-            self.state = max(min(self.state + step, self.length + 1), 0)  # ensure we are not out of bounds
+            self.state = max(min(self.state + step, self.length + 1), 1)  # ensure we are not out of bounds
         else:
             self.state += action
 
@@ -168,19 +164,63 @@ class RandomWalk:
             episode = self.generate_episode()
             g = 0
             if first_visit:
-                episode = dict(episode[::-1])  # gets rif of the duplicate states in the trajectory
+                episode = dict(episode[::-1])  # gets rid of the duplicate states in the trajectory
                 for state, reward in episode.items():
                     state_visitation[state] += 1
                     g = self.gamma * g + reward
                     if state in self.terminal_states:
                         continue
-                    v = value_function.value(state)
-                    delta = alpha * (g - v)
+                    delta = alpha * (g - value_function.value(state))
                     value_function.update(delta, state)
             else:
                 raise Exception('all visit MC is not implemented')
         
         return state_visitation
+
+    @ray.remote
+    def semi_gradient_td(self, n_episodes: int, n: int = 1, alpha: float = 2e-5):
+    
+        value_function = ValueFunction(self.length, self.state_aggregation)
+        state_visitation = np.zeros(self.length + 2)
+        self.terminal_states = (1, self.length + 1)
+    
+        for _ in tqdm(range(1, n_episodes + 1)):
+            T = float('inf')
+        
+            self.state = self.init_state
+            states = [self.state]
+            state_visitation[self.state] += 1
+            rewards = [0]
+            t = -1
+        
+            while True:
+                t += 1
+                if t < T:
+                    state_visitation[self.state] += 1
+                    s1 = self.walk()
+                    states.append(s1)
+                    state_visitation[s1] += 1
+                    if s1 in self.terminal_states:
+                        rewards.append(self.termination_reward[self.terminal_states.index(s1)])
+                        T = t + 1
+                    else:
+                        rewards.append(0)
+            
+                tau = t - n + 1  # tau is the time whose state's estimate is being updated
+                if tau >= 0:
+                    G = 0
+                    for i in range(tau + 1, min(tau + n, T) + 1):
+                        G += pow(self.gamma, i - tau - 1) * rewards[i]
+                    if tau + n < T:
+                        G += pow(self.gamma, n) * value_function.value(states[tau + n])
+                
+                    delta = alpha * (G - value_function.value(states[tau]))
+                    value_function.update(delta, states[tau])
+            
+                if tau == T - 1:
+                    break
+    
+        return np.array([value_function.value(i) for i in range(1, self.length + 1)])
     
     @ray.remote
     def batch_updates(self, algo: str = 'TD', n_episodes: int = 100, alpha: float = 0.001):
@@ -252,8 +292,8 @@ class RandomWalk:
             yaxis=dict(title='Error', titlefont=dict(size=13)),
         )
         return {'data': traces, 'layout': layout}
-    
-    def plot_state_values_fa(self, state_values, state_visitation):
+
+    def plot_state_values_fa(self, state_values, state_visitation=None):
         traces = list()
         
         traces.append(
@@ -270,16 +310,17 @@ class RandomWalk:
                 name=f'True values'
             )
         )
-        traces.append(
-            go.Bar(
-                y=state_visitation,
-                marker=dict(
-                    color='gainsboro'
-                ),
-                yaxis='y2',
-                name='State visitation distribution'
+        if state_visitation:
+            traces.append(
+                go.Bar(
+                    y=state_visitation,
+                    marker=dict(
+                        color='gainsboro'
+                    ),
+                    yaxis='y2',
+                    name='State visitation distribution'
+                )
             )
-        )
         
         layout = dict(
             height=600,
@@ -293,7 +334,7 @@ class RandomWalk:
                 title='Distribution scale',
                 overlaying='y',
                 side='right',
-            ),
+            ) if state_visitation else {},
             xaxis=dict(
                 title='State',
             )

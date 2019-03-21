@@ -446,7 +446,7 @@ layout = html.Div([
                             dcc.Dropdown(
                                 id='comparison',
                                 options=[{'label': s, 'value': s} for s in
-                                         ['TD vs MC', 'n-steps', 'FA']],
+                                         ['TD vs MC', 'n-steps', 'FA MC', 'FA TD']],
                                 value='TD vs MC'
                             )
                         ],
@@ -622,6 +622,7 @@ outputs_components = [Output(output_id, 'style') for output_id in output_ids]
         Input('task', 'value'),
         Input('off_policy', 'value'),
         Input('maze_type', 'value'),
+        Input('comparison', 'value'),
     ],
     [
         # Shared across DP
@@ -646,20 +647,19 @@ outputs_components = [Output(output_id, 'style') for output_id in output_ids]
         State('feature', 'value'),
     
         # Random Walk
-        State('comparison', 'value'),
         State('walk_length', 'value'),
     
         State('distribution', 'value'),
 
     ]
 )
-def show_hide(section, task, off_policy, maze_type,
+def show_hide(section, task, off_policy, maze_type, comparison,
               in_place,
               grid_size, gamma,
               prob_heads, goal,
               exploration, n_iter, behavior,
               feature,
-              comparison, walk_length,
+              walk_length,
               distribution
               ):
     print(section)
@@ -667,8 +667,8 @@ def show_hide(section, task, off_policy, maze_type,
     if section in ["Random Walk"]:
         if comparison in ['TD vs MC', 'n-iter']:
             show = {'comparison', 'walk_length', 'n_iter', 'simulation'}
-        elif comparison in ['FA']:
-            show = {'comparison', 'walk_length', 'n_iter'}
+        elif comparison in ['FA MC', 'FA TD']:
+            show = {'comparison', 'walk_length', 'n_iter', 'simulation'}
     
     elif section in ["Windy Gridworld"]:
         show = {'feature'}
@@ -761,7 +761,9 @@ def n_iter(task, off_policy, comparison, section):
             return 100
         elif comparison == 'n-steps':
             return 10
-        elif comparison == 'FA':
+        elif comparison == 'FA MC':
+            return 100000
+        elif comparison == 'FA TD':
             return 100000
     elif section == 'Cliff Walking':
         return 500
@@ -787,9 +789,7 @@ def simulation(task, off_policy, comparison, maze_type, section):
             if off_policy == 'True':
                 return 1000
     elif section == 'Random Walk':
-        if comparison == 'TD vs MC':
-            return 100
-        elif comparison == 'n-steps':
+        if comparison in ['TD vs MC', 'n-steps', 'FA MC', 'FA TD']:
             return 100
     elif section == 'Cliff Walking':
         return 100
@@ -871,7 +871,9 @@ def walk_length(comparison):
     length = {
         "TD vs MC": 5,
         'n-steps' : 19,
-        'FA'      : 1000
+        'FA MC'   : 1000,
+        'FA TD'   : 1000,
+    
     }
     return length[comparison]
 
@@ -1370,8 +1372,8 @@ def RL(clicks, button_state, section,
                     className=f'six columns',
                 ),
             ]
-    
-        elif comparison == 'FA':
+
+        elif comparison == 'FA MC':
         
             alpha = 2e-5
             state_aggregation = 100
@@ -1390,6 +1392,55 @@ def RL(clicks, button_state, section,
                     dcc.Graph(
                         id='values',
                         figure=fig,
+                    ),
+                    className=f'six columns',
+                ),
+            ]
+
+        elif comparison == 'FA TD':
+    
+            ####################################################################################################
+    
+            n_step = 1
+            alpha = 2e-5
+            state_aggregation = 100
+    
+            rw = RandomWalk(walk_length, termination_reward=(-1, 1), state_aggregation=state_aggregation)
+            state_values = ray.get([rw.semi_gradient_td.remote(rw, n_iter, n_step, alpha)])[1:walk_length]
+    
+            fig1 = rw.plot_state_values_fa(state_values)
+    
+            ####################################################################################################
+    
+            alphas = [alpha / 10 for alpha in range(0, 11)]
+            steps = [2 ** p for p in range(10)]
+    
+            true_values = np.arange(-walk_length + 1, walk_length + 1, 2) / (walk_length + 1.)
+            errors = dict(zip(steps, [alphas.copy() for _ in range(len(steps))]))
+    
+            for n_step in tqdm(steps):
+                for i, alpha in enumerate(alphas):
+                    rw = RandomWalk(walk_length, termination_reward=(-1, 1), state_aggregation=state_aggregation)
+                    state_values = [rw.semi_gradient_td.remote(rw, n_iter, n_step, alpha) for _ in range(simulations)]
+                    state_values = np.asarray(ray.get(state_values))
+                    rmse = np.sqrt(np.sum(np.power(state_values - true_values, 2), axis=1))
+                    rmse /= simulations * np.sqrt(walk_length)
+                    errors[n_step][i] = rmse
+    
+            fig2 = rw.plot_rmse(errors, alphas)
+    
+            return [
+                html.Div(
+                    dcc.Graph(
+                        id='values1',
+                        figure=fig1,
+                    ),
+                    className=f'six columns',
+                ),
+                html.Div(
+                    dcc.Graph(
+                        id='values2',
+                        figure=fig2,
                     ),
                     className=f'six columns',
                 ),
