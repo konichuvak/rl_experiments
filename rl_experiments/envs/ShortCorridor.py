@@ -86,15 +86,55 @@ class ShortCorridor(GridWorldGenerator):
                 theta += alpha * (gamma ** t) * G * grad_log_pi
         
         return total_rewards
+
+    def reinforce_baseline(self, n_episodes: int = 1000, gamma: float = 1., alpha: float = 0.1, epsilon: float = 0.1,
+                           alpha_w: float = 0.1):
+        """ REINFORCE: Monte-Carlo Policy-Gradient Control (episodic) for pi* with baseline"""
+    
+        theta = np.array([1., -1.])
+        w = np.array([1., -1.])
+        x = np.array([[0, 1], [1, 0]])  # right / left
+    
+        exploration = epsilon / len(self.actions)
+    
+        total_rewards = list()
+        for _ in range(n_episodes):
+            policy = self.softmax(theta.dot(x))
+        
+            # redistribute probabilities to ensure exploration
+            min_prob = np.argmin(policy)
+            if policy[min_prob] < exploration:
+                policy[:] = 1 - exploration
+                policy[min_prob] = exploration
+        
+            states, actions, rewards, reward_sum = self.generate_episode(policy)
+            total_rewards.append(reward_sum)
+        
+            G = 0
+            t = len(states) + 1
+            for state, action, reward in list(zip(states, actions, rewards))[::-1]:
+                t -= 1
+            
+                G = gamma * G + reward
+            
+                delta = G - w
+            
+                w += alpha_w * delta  # update value parameters
+            
+                pi = self.softmax(theta.dot(x))
+                grad_log_pi = x[int(action == -1)] - np.dot(x, pi)
+                theta += alpha * (gamma ** t) * delta * grad_log_pi  # update policy parameters
+    
+        return total_rewards
     
     @staticmethod
-    def plot_rewards(rewards):
+    def plot_rewards(rewards, baseline=False):
         traces = list()
-        for alpha, reward in rewards.items():
+        for comparison, reward in rewards.items():
             traces.append(go.Scatter(
                 mode='lines',
                 y=reward,
-                name=f'2^{log(alpha, 2)}',
+                name=f'2^{log(comparison, 2)}' if not baseline else comparison
             ))
         
         layout = dict(
@@ -105,6 +145,8 @@ class ShortCorridor(GridWorldGenerator):
             ),
             yaxis=dict(
                 title='Sum of rewards per episode',
-            )
+            ),
+            legend=dict(xanchor='right', yanchor='bottom')
+            
         )
         return {'data': traces, 'layout': layout}

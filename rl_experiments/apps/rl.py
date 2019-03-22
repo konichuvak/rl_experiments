@@ -579,6 +579,23 @@ layout = html.Div([
                         style={'display': 'none'},
                         className='one column',
                     ),
+    
+                    ######################
+                    # POLICY GRADIENTS
+                    html.Div(
+                        id='baseline_div',
+                        children=[
+                            html.Label('Use baseline?', style={'textAlign': 'center'}),
+                            dcc.Dropdown(
+                                id='baseline',
+                                options=[{'label': s, 'value': s} for s in ['True', 'False']],
+                                value='False'
+                            )
+                        ],
+                        style={'display': 'none'},
+                        className='one column',
+                    )
+                    ######################
                 ],
                 className='row'
             ),
@@ -615,7 +632,7 @@ output_ids = sorted({
     'policy_div', 'n_iter_div', 'prob_heads_div', 'goal_div', 'grid_size_div',
     'gamma_div', 'max_cars_div', 'max_move_cars_div', 'rental_rate_div', 'rental_credit_div', 'move_car_cost_div',
     'maze_type_div', 'switch_time_div', 'step_limit_div', 'step_size_div', 'time_weight_div', 'planning_steps_div',
-    'distribution_div'
+    'distribution_div', 'baseline_div'
 })
 active_outputs = OrderedDict(zip(output_ids, (display[0] for _ in range(len(output_ids)))))
 outputs_components = [Output(output_id, 'style') for output_id in output_ids]
@@ -656,6 +673,9 @@ outputs_components = [Output(output_id, 'style') for output_id in output_ids]
         State('walk_length', 'value'),
     
         State('distribution', 'value'),
+    
+        # REINFORCE
+        State('baseline', 'value'),
 
     ]
 )
@@ -666,7 +686,8 @@ def show_hide(section, task, off_policy, maze_type, comparison,
               exploration, n_iter, behavior,
               feature,
               walk_length,
-              distribution
+              distribution,
+              baseline
               ):
     print(section)
     show = set()
@@ -724,7 +745,7 @@ def show_hide(section, task, off_policy, maze_type, comparison,
         show = {'simulation', 'step_limit'}
 
     elif section in {'Policy Gradients'}:
-        show = {'simulation', 'n_iter', 'gamma'}
+        show = {'simulation', 'n_iter', 'gamma', 'baseline'}
 
     show = {f'{component}_div' for component in show}
 
@@ -985,6 +1006,9 @@ def description(section):
         State('planning_steps', 'value'),
     
         State('distribution', 'value'),
+    
+        # REINFORCE
+        State('baseline', 'value'),
     ],
 )
 def RL(clicks, button_state, section,
@@ -997,6 +1021,7 @@ def RL(clicks, button_state, section,
        comparison, walk_length,
        maze_type, step_size, step_limit, time_weight, switch_time, planning_steps,
        distribution,
+       baseline,
        ):
     if not clicks:
         raise PreventUpdate
@@ -1969,24 +1994,59 @@ def RL(clicks, button_state, section,
         ---
         
         """
+        algo = 'REINFORCE'
+        baseline = eval(baseline)
 
-        sc = ShortCorridor(width=4, height=1, default_reward=-1, other_rewards={3: 0})
-        sc.actions = (1, -1)  # right/left
+        if algo == 'REINFORCE':
+    
+            sc = ShortCorridor(width=4, height=1, default_reward=-1, other_rewards={3: 0})
+            sc.actions = (1, -1)  # right/left
+            from math import log
+    
+            if not baseline:
+        
+                step_size = (2 ** (-13), 2 ** (-14), 2 ** (-12))
+        
+                total_rewards = dict()
+                for alpha in tqdm(step_size):
+                    rewards = [sc.reinforce.remote(sc, n_iter, gamma, alpha) for _ in range(simulations)]
+                    total_rewards[alpha] = np.mean(np.asarray(ray.get(rewards)), axis=0)
+        
+                fig = sc.plot_rewards(total_rewards)
+                return [
+                    html.Div(
+                        dcc.Graph(
+                            id='short-coridor',
+                            figure=fig,
+                            className='six columns'
+                        ),
+                    ),
+                ]
+    
+            else:
+                total_rewards = dict()
+        
+                alpha = 2 ** (-13)
+                algo = f"REINFORCE. a_theta = 2^{log(alpha, 2)}"
+                rewards = [sc.reinforce.remote(sc, n_iter, gamma, alpha) for _ in range(simulations)]
+                total_rewards[algo] = np.mean(np.asarray(ray.get(rewards)), axis=0)
+        
+                alphas = dict(zip(('alpha', 'alpha_w'), (2 ** (-9), 2 ** (-6))))
+                algo = f"REINFORCE with Baseline. a_theta = 2^{log(alphas['alpha'], 2)}, "\
+                    f"a_w = 2^{log(alphas['alpha_w'], 2)}"
+                rewards = [sc.reinforce_baseline(n_iter, gamma, **alphas) for _ in range(simulations)]
+                total_rewards[algo] = np.mean(np.asarray(rewards), axis=0)
+        
+                fig = sc.plot_rewards(total_rewards, baseline)
+                return [
+                    html.Div(
+                        dcc.Graph(
+                            id='short-coridor',
+                            figure=fig,
+                            className='six columns'
+                        ),
+                    ),
+                ]
 
-        step_size = (2 ** (-13), 2 ** (-14), 2 ** (-12))
-
-        total_rewards = dict()
-        for alpha in tqdm(step_size):
-            rewards = [sc.reinforce.remote(sc, n_iter, gamma, alpha) for _ in range(simulations)]
-            total_rewards[alpha] = np.mean(np.asarray(ray.get(rewards)), axis=0)
-
-        fig = sc.plot_rewards(total_rewards)
-        return [
-            html.Div(
-                dcc.Graph(
-                    id='short-coridor',
-                    figure=fig,
-                    className='six columns'
-                ),
-            ),
-        ]
+        elif algo == 'Actor-Critic':
+            pass
