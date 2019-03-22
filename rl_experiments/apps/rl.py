@@ -723,6 +723,9 @@ def show_hide(section, task, off_policy, maze_type, comparison,
     elif section in {'Trajectory Sampling'}:
         show = {'simulation', 'step_limit'}
 
+    elif section in {'Policy Gradients'}:
+        show = {'simulation', 'n_iter', 'gamma'}
+
     show = {f'{component}_div' for component in show}
 
     activations = active_outputs.copy()
@@ -775,6 +778,9 @@ def n_iter(task, off_policy, comparison, section):
         return 500
     elif section == 'Dyna Maze':
         return 50
+    elif section == 'Policy Gradients':
+        return 1000
+
 
     return 10000
 
@@ -807,6 +813,8 @@ def simulation(task, off_policy, comparison, maze_type, section):
         elif maze_type == 'Shortcut Maze':
             return 5
     elif section == 'Trajectory Sampling':
+        return 100
+    elif section == 'Policy Gradients':
         return 100
 
     return 100
@@ -883,6 +891,7 @@ def walk_length(comparison):
     }
     return length[comparison]
 
+
 @app.callback(
     Output('gamma', 'value'),
     [Input('section', 'value')],
@@ -895,7 +904,6 @@ def gamma_value(section):
 
 
 #####################################################
-
 
 @app.callback(
     Output('button', 'children'),
@@ -1961,21 +1969,18 @@ def RL(clicks, button_state, section,
         ---
         
         """
-    
-        sc = ShortCorridor(width=4, height=1, default_reward=-1, other_rewards={3: 0}, actions=[[-1], [1]])
-        sc.actions = (-1, 1)
-    
-        simulations = 1
-        n_iter = 1000
-        alpha = 2 ** (-13)
-        gamma = 1
-    
-        rewards = np.zeros((simulations, n_iter))
-        for i in tqdm(range(simulations)):
-            rewards[i] = sc.reinforce(n_episodes=n_iter, gamma=gamma, alpha=alpha)
-        rewards = np.mean(rewards, axis=0)
-    
-        fig = sc.plot_rewards({alpha: rewards})
+
+        sc = ShortCorridor(width=4, height=1, default_reward=-1, other_rewards={3: 0})
+        sc.actions = (1, -1)  # right/left
+
+        step_size = (2 ** (-13), 2 ** (-14), 2 ** (-12))
+
+        total_rewards = dict()
+        for alpha in tqdm(step_size):
+            rewards = [sc.reinforce.remote(sc, n_iter, gamma, alpha) for _ in range(simulations)]
+            total_rewards[alpha] = np.mean(np.asarray(ray.get(rewards)), axis=0)
+
+        fig = sc.plot_rewards(total_rewards)
         return [
             html.Div(
                 dcc.Graph(

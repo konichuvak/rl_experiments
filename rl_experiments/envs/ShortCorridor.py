@@ -1,6 +1,8 @@
+from math import log
+
 import numpy as np
 import plotly.graph_objs as go
-from tqdm import tqdm
+import ray
 
 from envs.GridWorld import GridWorldGenerator
 
@@ -16,7 +18,7 @@ class ShortCorridor(GridWorldGenerator):
     def state_transition(state, action):
         """
         :param state:   x coordinate of the agent in the grid
-        :param action:  performed action
+        :param action:  performed action (-1 is left, 1 is right)
         :return:        x coordinate of the next state and the reward associated with the transition
         """
         reward = -1
@@ -24,7 +26,7 @@ class ShortCorridor(GridWorldGenerator):
             next_state = max(0, state + action)
         elif state == 1:
             next_state = state - action
-        elif state == 3:
+        else:
             next_state, reward = state, 0
         return next_state, reward
     
@@ -36,26 +38,28 @@ class ShortCorridor(GridWorldGenerator):
     def generate_episode(self, policy):
         state, reward, reward_sum = 0, 0, 0
         states, actions, rewards = [], [], []
-        
-        while state != self.goal:
+
+        while True:
             states.append(state)
-            action = np.random.choice(self.actions, size=1, p=policy)
+            action = np.random.choice(self.actions, p=policy)
             actions.append(action)
             state, reward = self.state_transition(state, action)
             rewards.append(reward)
             reward_sum += reward
+            if reward == 0:
+                break
         
         return states, actions, rewards, reward_sum
-    
+
+    @ray.remote
     def reinforce(self, n_episodes: int = 1000, gamma: float = 1., alpha: float = 0.1, epsilon: float = 0.1):
-        """ REINFORCE: Monte-Carlo Policy-Gradient Control (episodic) for pi*"""
-        # self.theta = np.zeros(2)
+        """ REINFORCE: Monte-Carlo Policy-Gradient Control (episodic) for pi* """
         theta = np.array([1.47, -1.47])
-        x = np.array([[1, 0], [0, 1]])  # right / left 2x2
+        x = np.array([[0, 1], [1, 0]])  # right / left
         exploration = epsilon / len(self.actions)
         
         total_rewards = list()
-        for _ in tqdm(range(n_episodes)):
+        for _ in range(n_episodes):
             policy = self.softmax(theta.dot(x))
             
             # redistribute probabilities to ensure exploration
@@ -66,17 +70,18 @@ class ShortCorridor(GridWorldGenerator):
             
             states, actions, rewards, reward_sum = self.generate_episode(policy)
             total_rewards.append(reward_sum)
-            T = len(states)
             for t, (state, action) in enumerate(zip(states, actions)):
                 # calculate return on the trajectory
-                # G = 0
-                # for k in range(t+1, T+1):
-                #     G += gamma ** (k-t-1) * rewards[k]
-                G = sum(rewards[t + 1:])  # when no discount is applied
+                G = 0
+                for k in range(t + 1, len(states)):
+                    G += gamma ** (k - t - 1) * rewards[k]
+                # G = sum(rewards[t + 1:])  # when no discount is applied
                 
                 # update policy parameters
                 h = theta.dot(x)
                 pi = self.softmax(h)
+                # Gradient of log of softmax function. See the link for derivation details:
+                # https://math.stackexchange.com/questions/2013050/log-of-softmax-function-derivative
                 grad_log_pi = x[int(action == -1)] - np.dot(x, pi)
                 theta += alpha * (gamma ** t) * G * grad_log_pi
         
@@ -89,9 +94,8 @@ class ShortCorridor(GridWorldGenerator):
             traces.append(go.Scatter(
                 mode='lines',
                 y=reward,
-                name=alpha,
-            )
-            )
+                name=f'2^{log(alpha, 2)}',
+            ))
         
         layout = dict(
             height=700,
@@ -101,7 +105,6 @@ class ShortCorridor(GridWorldGenerator):
             ),
             yaxis=dict(
                 title='Sum of rewards per episode',
-                # range=[-200, 0],
             )
         )
         return {'data': traces, 'layout': layout}
