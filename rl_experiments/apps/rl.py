@@ -14,11 +14,12 @@ from rl_experiments.assets.style import *
 from rl_experiments.envs.Blackjack import Blackjack
 from rl_experiments.envs.CliffWalking import CliffWalking
 from rl_experiments.envs.DynaMaze import DynaMaze
-# from CarRental import CarRental
 from rl_experiments.envs.GamblersRuin import GamblersRuin
 from rl_experiments.envs.GridWorld import GridWorld
 from rl_experiments.envs.MarioVsBowser import MarioVsBowser
 from rl_experiments.envs.RandomWalk import RandomWalk, ValueFunction
+# from CarRental import CarRental
+from rl_experiments.envs.ShortCorridor import ShortCorridor
 from rl_experiments.envs.TicTacToe import TicTacToe
 from rl_experiments.envs.WindyGridworld import WindyGridworld
 from rl_experiments.scripts.ExpectedVsSampleUpdates import ExpectedVsSampleUpdates
@@ -127,7 +128,12 @@ layout = html.Div([
                                                 style=tab_style,
                                                 selected_style=selected_style
                                             ),
-
+                                            dcc.Tab(
+                                                label='Policy Gradients',
+                                                value='Policy Gradients',
+                                                style=tab_style,
+                                                selected_style=selected_style
+                                            ),
                                         ],
                                     ),
                                 ],
@@ -1147,7 +1153,7 @@ def RL(clicks, button_state, section,
                 The behavior policy b can be anything, but in order to assure convergence of Pi to the optimal policy,
                 an infinite number of returns must be obtained for each pair of state and action.
                 This can be assured by choosing b to be epsilon-soft.
-                The policy Pi converges to optimal at all encountered states even though actions are selected according to a di↵erent soft policy b,
+                The policy Pi converges to optimal at all encountered states even though actions are selected according to a different soft policy b,
                 which may change between or even within episodes.
                 """
                 # TODO: apply this algorithm to racetrack problem instead
@@ -1257,6 +1263,13 @@ def RL(clicks, button_state, section,
     elif section == 'Random Walk':
     
         if comparison == 'TD vs MC':
+    
+            """
+            In the TD(0) vs MC case we compare performance of two classic algorithms by measuring Root Mean Squared Error
+            between the true state values of the random walk and the ones estimated by the agent.
+            In this case we set the reward to 0 for all states except for the rightmost state.
+            State value estimates are averaged over the number of states of the process (*Walk Length*), then averaged over the number of experiments.
+            """
         
             length = walk_length
             sims = simulations
@@ -1335,6 +1348,15 @@ def RL(clicks, button_state, section,
     
         elif comparison == 'n-steps':
             """
+            We then generalize these two algorithms via n-step TD method.
+            This time, the rewards are -1 on the left and 1 on the right with. All states are initialized with value 0.
+            Results are shown for n-step TD methods with a range of values for n and step-size alpha.
+            The performance measure was kept the same except averaging occurs across over first 10 episodes of the run in addition to averaging over states and experiments.
+        
+            """
+            
+            
+            """
             Exercise 7.3 Why do you think a larger random walk task (19 states instead of 5) was
             used in the examples of this chapter? Would a smaller walk have shifted the advantage
             to a different value of n? How about the change in left-side outcome from 0 to −1 made
@@ -1374,7 +1396,53 @@ def RL(clicks, button_state, section,
             ]
 
         elif comparison == 'FA MC':
-        
+    
+            """
+            
+            ### Example 9.1: State Aggregation on the 1000-state Random Walk
+            
+            ---
+            
+            Consider a 1000-state version of the random walk task (Examples 6.2 and 7.1 on pages 125 and
+            144). The states are numbered from 1 to 1000, left to right, and all episodes begin near
+            the center, in state 500. State transitions are from the current state to one of the 100
+            neighboring states to its left, or to one of the 100 neighboring states to its right, all with
+            equal probability. Of course, if the current state is near an edge, then there may be fewer
+            than 100 neighbors on that side of it. In this case, all the probability that would have
+            gone into those missing neighbors goes into the probability of terminating on that side
+            (thus, state 1 has a 0.5 chance of terminating on the left, and state 950 has a 0.25 chance
+            of terminating on the right). As usual, termination on the left produces a reward of
+            −1, and termination on the right produces a reward of +1. All other transitions have a
+            reward of zero. We use this task as a running example throughout this section.
+            Figure 9.1 shows the true value function v⇡ for this task. It is nearly a straight line,
+            but curving slightly toward the horizontal for the last 100 states at each end. Also shown
+            is the final approximate value function learned by the gradient Monte-Carlo algorithm
+            with state aggregation after 100,000 episodes with a step size of alpha = 2 * 10^−5. For the
+            state aggregation, the 1000 states were partitioned into 10 groups of 100 states each (i.e.,
+            states 1–100 were one group, states 101–200 were another, and so on). The staircase effect
+            shown in the figure is typical of state aggregation; within each group, the approximate
+            value is constant, and it changes abruptly from one group to the next. These approximate
+            values are close to the global minimum of the VE (9.1).
+            
+            Some of the details of the approximate values are best appreciated by reference to
+            the state distribution μ for this task, shown in the lower portion of the figure with a
+            right-side scale. State 500, in the center, is the first state of every episode, but is rarely
+            visited again. On average, about 1.37% of the time steps are spent in the start state.
+            The states reachable in one step from the start state are the second most visited, with
+            about 0.17% of the time steps being spent in each of them. From there μ falls off almost
+            linearly, reaching about 0.0147% at the extreme states 1 and 1000. The most visible
+            effect of the distribution is on the leftmost groups, whose values are clearly shifted higher
+            than the unweighted average of the true values of states within the group, and on the
+            rightmost groups, whose values are clearly shifted lower. This is due to the states in
+            these areas having the greatest asymmetry in their weightings by μ. For example, in the
+            leftmost group, state 100 is weighted more than 3 times more strongly than state 1. Thus
+            the estimate for the group is biased toward the true value of state 100, which is higher
+            than the true value of state 1.
+            
+            ---
+            
+            """
+            
             alpha = 2e-5
             state_aggregation = 100
         
@@ -1398,6 +1466,36 @@ def RL(clicks, button_state, section,
             ]
 
         elif comparison == 'FA TD':
+            description = """
+            ### Example 9.2: Bootstrapping on the 1000-state RandomWalk State aggregation
+            
+            ---
+            
+            State aggregation is a special case of linear function approximation, so let’s return to the
+            1000-state random walk to illustrate some of the observations made in this chapter. The left panel of
+            Figure 9.2 shows the final value function learned by the semi-gradient TD(0) algorithm
+            (page 203) using the same state aggregation as in Example 9.1. We see that the nearasymptotic
+            TD approximation is indeed farther from the true values than the Monte
+            Carlo approximation shown in Figure 9.1.
+            
+            Nevertheless, TD methods retain large potential advantages in learning rate, and
+            generalize Monte Carlo methods, as we investigated fully with n-step TD methods in
+            Chapter 7. The right panel of Figure 9.2 shows results with an n-step semi-gradient
+            TD method using state aggregation on the 1000-state random walk that are strikingly
+            similar to those we obtained earlier with tabular methods and the 19-state random
+            walk (Figure 7.2). To obtain such quantitatively similar results we switched the state
+            aggregation to 20 groups of 50 states each. The 20 groups were then quantitatively close
+            to the 19 states of the tabular problem. In particular, recall that state transitions were
+            up to 100 states to the left or right. A typical transition would then be of 50 states to
+            the right or left, which is quantitatively analogous to the single-state state transitions of
+            the 19-state tabular system. To complete the match, we use here the same performance
+            measure—an unweighted average of the RMS error over all states and over the first
+            10 episodes—rather than a VE objective as is otherwise more appropriate when using
+            function approximation.
+            
+            ---
+            
+            """
     
             ####################################################################################################
     
@@ -1406,12 +1504,12 @@ def RL(clicks, button_state, section,
             state_aggregation = 100
     
             rw = RandomWalk(walk_length, termination_reward=(-1, 1), state_aggregation=state_aggregation)
-            state_values = ray.get([rw.semi_gradient_td.remote(rw, n_iter, n_step, alpha)])[1:walk_length]
-    
+            state_values = ray.get(rw.semi_gradient_td.remote(rw, n_iter, n_step, alpha))[-1]
             fig1 = rw.plot_state_values_fa(state_values)
     
             ####################################################################################################
     
+            n_iter = 10
             alphas = [alpha / 10 for alpha in range(0, 11)]
             steps = [2 ** p for p in range(10)]
     
@@ -1423,8 +1521,8 @@ def RL(clicks, button_state, section,
                     rw = RandomWalk(walk_length, termination_reward=(-1, 1), state_aggregation=state_aggregation)
                     state_values = [rw.semi_gradient_td.remote(rw, n_iter, n_step, alpha) for _ in range(simulations)]
                     state_values = np.asarray(ray.get(state_values))
-                    rmse = np.sqrt(np.sum(np.power(state_values - true_values, 2), axis=1))
-                    rmse /= simulations * np.sqrt(walk_length)
+                    rmse = np.sum(np.sqrt(np.sum(np.power(state_values - true_values, 2), axis=2)))
+                    rmse /= simulations * n_iter * np.sqrt(walk_length)
                     errors[n_step][i] = rmse
     
             fig2 = rw.plot_rmse(errors, alphas)
@@ -1541,7 +1639,9 @@ def RL(clicks, button_state, section,
         if maze_type == 'Dyna Maze':
             """
             ### Dyna Maze
-
+            
+            ---
+            
             The graph below shows average learning curves from an experiment in which Dyna-Q agents were applied to the maze task.
             The initial action values were zero, the step-size parameter was alpha = 0.1, and the exploration parameter was epsilon = 0.1.
             When selecting greedily among actions, ties were broken randomly.
@@ -1556,6 +1656,9 @@ def RL(clicks, button_state, section,
             This was by far the slowest agent on this problem, despite the fact that the parameter values (alpha and epsilon) were optimized for it.
             The nonplanning agent took about 25 episodes to reach (epsilon-)optimal performance,
             whereas the n = 5 agent took about five episodes, and the n = 50 agent took only three episodes.
+            
+            ---
+            
             """
             dm = DynaMaze(width=9, height=6, default_reward=0, other_rewards={(8, 0): 1},
                           start_state=(0, 2), goal=(8, 0))
@@ -1645,7 +1748,7 @@ def RL(clicks, button_state, section,
         elif maze_type == 'Shortcut Maze':
             """
             ### Exercise 8.4 Shortcut Maze
-
+            
             The exploration bonus described above actually changes the estimated values of states and actions.
             Is this necessary? Suppose the bonus k * sqrt(tau) was used not in updates, but solely in action selection.
             That is, suppose the action selected was always that for which Q(St, a) + k * sqrt(tau(St, a)) was maximal.
@@ -1829,6 +1932,55 @@ def RL(clicks, button_state, section,
                 dcc.Graph(
                     id='on_policy-vs-uniform-sampling',
                     figure=ts.plot(state_values),
+                    className='six columns'
+                ),
+            ),
+        ]
+
+    elif section == 'Policy Gradients':
+        """
+        ### Example 13.1 Short corridor with switched actions
+        
+        ---
+        
+        Consider the small corridor gridworld shown inset in the graph below. The reward
+        is −1 per step, as usual. In each of the three nonterminal states there are only
+        two actions, right and left. These actions have their usual consequences in the first
+        and third states (left causes no movement in the first state), but in the second
+        state they are reversed, so that right moves to the left and left moves to the right.
+        The problem is difficult because all the states appear identical under the function
+        approximation. In particular, we define x(s, right) = [1, 0]> and x(s, left) = [0, 1]>,
+        for all s. An action-value method with "-greedy action selection is forced to choose
+        between just two policies: choosing right with high probability 1 − "/2 on all steps
+        or choosing left with the same high probability on all time steps. If " = 0.1, then
+        these two policies achieve a value (at the start state) of less than −44 and −82,
+        respectively, as shown in the graph. A method can do significantly better if it can
+        learn a specific probability with which to select right. The best probability is about
+        0.59, which achieves a value of about −11.6.
+        
+        ---
+        
+        """
+    
+        sc = ShortCorridor(width=4, height=1, default_reward=-1, other_rewards={3: 0}, actions=[[-1], [1]])
+        sc.actions = (-1, 1)
+    
+        simulations = 1
+        n_iter = 1000
+        alpha = 2 ** (-13)
+        gamma = 1
+    
+        rewards = np.zeros((simulations, n_iter))
+        for i in tqdm(range(simulations)):
+            rewards[i] = sc.reinforce(n_episodes=n_iter, gamma=gamma, alpha=alpha)
+        rewards = np.mean(rewards, axis=0)
+    
+        fig = sc.plot_rewards({alpha: rewards})
+        return [
+            html.Div(
+                dcc.Graph(
+                    id='short-coridor',
+                    figure=fig,
                     className='six columns'
                 ),
             ),
