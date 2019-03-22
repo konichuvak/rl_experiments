@@ -1,15 +1,17 @@
-import numpy as np
-import random
-import plotly.graph_objs as go
-from collections import defaultdict
-from heapdict import heapdict
-import ray
 import pickle
+import random
 import time
+from collections import defaultdict
+
+import numpy as np
+import plotly.graph_objs as go
+import ray
+from heapdict import heapdict
 from tqdm import tqdm
-from rl_experiments.app import db
-from rl_experiments.envs.GridWorld import GridWorldGenerator
-from rl_experiments.utils import randargmax
+
+from app import db
+from envs.GridWorld import GridWorldGenerator
+from utils import randargmax
 
 
 class DynaMaze(GridWorldGenerator):

@@ -1,11 +1,12 @@
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output, State
-from rl_experiments.envs.Bandits import Bandits
-from rl_experiments.assets.style import *
 import numpy as np
-from tqdm import tqdm
 import ray
+from dash.dependencies import Input, Output, State
+from tqdm import tqdm
+
+from assets.style import *
+from envs.Bandits import Bandits
 
 ray.init(ignore_reinit_error=True)
 

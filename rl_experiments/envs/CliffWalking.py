@@ -1,9 +1,11 @@
-import numpy as np
 import random
+
+import numpy as np
 import plotly.graph_objs as go
 import ray
 from tqdm import tqdm
-from rl_experiments.envs.GridWorld import GridWorldGenerator
+
+from envs.GridWorld import GridWorldGenerator
 
 
 class CliffWalking(GridWorldGenerator):

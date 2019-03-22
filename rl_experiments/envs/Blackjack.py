@@ -1,10 +1,12 @@
+import random
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 from plotly import tools
 from tqdm import tqdm
-import random
-from rl_experiments.utils import NoPrint
+
+from utils import NoPrint
 
 np.random.seed(1)
 random.seed(1)

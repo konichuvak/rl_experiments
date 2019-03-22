@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objs as go
 import ray
 
-from rl_experiments.utils import randargmax
+from utils import randargmax
 
 
 class TrajectorySampling:
@@ -27,9 +27,7 @@ class TrajectorySampling:
         return self.transition[state, action, state_next], self.rewards[state, action, state_next]
 
     def policy_evaluation(self, q):
-        # Evaluate the value of the start state for the greedy policy
-        # derived from @q under the MDP @task
-        # use Monte Carlo method to estimate the state value
+        """ policy evaluation using Monte Carlo rollouts """
 
         rollouts = 1000
         returns = list()
@@ -68,7 +66,6 @@ class TrajectorySampling:
 
         return state_values
 
-    # perform expected update from an on-policy distribution of the MDP @task
     @ray.remote
     def on_policy(self, step_limit: int, epsilon: float = 0.1):
         """

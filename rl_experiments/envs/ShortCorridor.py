@@ -2,7 +2,7 @@ import numpy as np
 import plotly.graph_objs as go
 from tqdm import tqdm
 
-from rl_experiments.envs.GridWorld import GridWorldGenerator
+from envs.GridWorld import GridWorldGenerator
 
 
 class ShortCorridor(GridWorldGenerator):

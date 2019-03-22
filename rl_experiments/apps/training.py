@@ -1,12 +1,13 @@
+import pickle
+
 import dash_core_components as dcc
 import dash_html_components as html
+import numpy as np
+import plotly.graph_objs as go
 from dash.dependencies import Input, Output
 
-from rl_experiments.app import db
-import plotly.graph_objs as go
-from rl_experiments.assets.style import *
-import numpy as np
-import pickle
+from app import db
+from assets.style import *
 
 layout = html.Div([
     html.Div(
