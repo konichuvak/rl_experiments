@@ -90,41 +90,41 @@ class ShortCorridor(GridWorldGenerator):
     def reinforce_baseline(self, n_episodes: int = 1000, gamma: float = 1., alpha: float = 0.1, epsilon: float = 0.1,
                            alpha_w: float = 0.1):
         """ REINFORCE: Monte-Carlo Policy-Gradient Control (episodic) for pi* with baseline"""
-    
+
         theta = np.array([1., -1.])
-        w = np.array([1., -1.])
+        w = np.array([0., 0., 0., 0.])
         x = np.array([[0, 1], [1, 0]])  # right / left
-    
+
         exploration = epsilon / len(self.actions)
-    
+
         total_rewards = list()
         for _ in range(n_episodes):
             policy = self.softmax(theta.dot(x))
-        
+
             # redistribute probabilities to ensure exploration
             min_prob = np.argmin(policy)
             if policy[min_prob] < exploration:
                 policy[:] = 1 - exploration
                 policy[min_prob] = exploration
-        
+
             states, actions, rewards, reward_sum = self.generate_episode(policy)
             total_rewards.append(reward_sum)
-        
+
             G = 0
             t = len(states) + 1
             for state, action, reward in list(zip(states, actions, rewards))[::-1]:
                 t -= 1
-            
+
                 G = gamma * G + reward
-            
-                delta = G - w
-            
-                w += alpha_w * delta  # update value parameters
-            
+
+                delta = G - w[state]
+
+                w[state] += alpha_w * delta  # update value parameters
+                
                 pi = self.softmax(theta.dot(x))
                 grad_log_pi = x[int(action == -1)] - np.dot(x, pi)
                 theta += alpha * (gamma ** t) * delta * grad_log_pi  # update policy parameters
-    
+
         return total_rewards
     
     @staticmethod
@@ -147,6 +147,6 @@ class ShortCorridor(GridWorldGenerator):
                 title='Sum of rewards per episode',
             ),
             legend=dict(xanchor='right', yanchor='bottom')
-            
+
         )
         return {'data': traces, 'layout': layout}
